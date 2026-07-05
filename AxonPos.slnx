@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Axon.API/Axon.API.csproj" />
+    <Project Path="src/Axon.Application/Axon.Application.csproj" />
+    <Project Path="src/Axon.Domain/Axon.Domain.csproj" />
+    <Project Path="src/Axon.Infrastructure/Axon.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Axon.Application.Tests/Axon.Application.Tests.csproj" />
+    <Project Path="tests/Axon.Domain.Tests/Axon.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
