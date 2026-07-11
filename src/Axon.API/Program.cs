@@ -1,13 +1,22 @@
+using Axon.API.Middleware;
+using Axon.Infrastructure.MultiTenant;
+using Axon.Domain.Interfaces;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<TenantContext>();
+builder.Services.AddScoped<ITenantContext>(sp => 
+    sp.GetRequiredService<TenantContext>());
+builder.Services.AddScoped<TenantResolver>();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-app.UseMiddleware<Axon.API.Middleware.ExceptionHandlingMiddleware>();
+app.UseMiddleware<TenantResolutionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

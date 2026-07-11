@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: axon_user
       POSTGRES_PASSWORD: axon_pass
-      POSTGRES_DB: axon_db
+      POSTGRES_DB: axon_master
     ports:
       - "5432:5432"
     volumes:
