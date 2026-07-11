@@ -1,4 +1,5 @@
 using Axon.Domain.Exceptions;
+using FluentValidation;
 
 namespace Axon.API.Middleware;
 
@@ -34,6 +35,13 @@ public class ExceptionHandlingMiddleware
             _logger.LogWarning(ex, "Unauthorized access handled by middleware.");
             await WriteErrorResponseAsync(context, StatusCodes.Status401Unauthorized, "Unauthorized");
         }
+        catch (ValidationException ex)
+        {
+            _logger.LogWarning(ex, "Validation exception handled by middleware.");
+
+            var errors = ex.Errors.Select(e => e.ErrorMessage).ToList();
+            await WriteErrorResponseAsync(context, StatusCodes.Status400BadRequest, "Error de validación", errors);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception caught by middleware.");
@@ -46,7 +54,11 @@ public class ExceptionHandlingMiddleware
         }
     }
 
-    private static async Task WriteErrorResponseAsync(HttpContext context, int statusCode, string message)
+    private static async Task WriteErrorResponseAsync(
+        HttpContext context,
+        int statusCode,
+        string message,
+        IEnumerable<string>? errors = null)
     {
         if (context.Response.HasStarted)
         {
@@ -61,7 +73,7 @@ public class ExceptionHandlingMiddleware
         {
             success = false,
             message,
-            errors = Array.Empty<string>()
+            errors = errors ?? Array.Empty<string>()
         });
     }
 }

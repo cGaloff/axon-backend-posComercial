@@ -1,3 +1,4 @@
+using Axon.Application.Interfaces;
 using Axon.Domain.Entities;
 using Axon.Domain.Interfaces;
 using Axon.Infrastructure.Persistence.Configurations;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Axon.Infrastructure.Persistence;
 
-public class TenantDbContext : DbContext
+public class TenantDbContext : DbContext, IApplicationDbContext
 {
     private readonly ITenantContext _tenantContext;
 
@@ -35,6 +36,5 @@ public class TenantDbContext : DbContext
         modelBuilder.ApplyConfiguration(new UserConfiguration());
         modelBuilder.ApplyConfiguration(new RoleConfiguration());
         modelBuilder.ApplyConfiguration(new PermissionConfiguration());
-        modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
     }
 }

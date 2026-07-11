@@ -25,10 +25,31 @@ public class RoleConfiguration : IEntityTypeConfiguration<Role>
         builder.Property(r => r.IsSystem)
             .HasDefaultValue(false);
 
-        // Role.Permissions is a domain-side convenience list, not a directly
-        // persistable navigation: the real relationship is the RolePermission
-        // join row. Without this, EF's convention would mistake it for a
-        // one-to-many and try to add a shadow RoleId FK on Permission.
-        builder.Ignore(r => r.Permissions);
+        // Role.Permissions is IReadOnlyList<Permission> with no public setter,
+        // backed by the private field _permissions -> EF needs field access to
+        // populate it during Include/ThenInclude.
+        builder.Navigation(r => r.Permissions)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        // Explicit many-to-many through RolePermission (no extra payload columns,
+        // just the composite key), which also fully configures RolePermission's
+        // own table/keys/FKs — no separate IEntityTypeConfiguration<RolePermission>
+        // needed or applied elsewhere.
+        builder.HasMany(r => r.Permissions)
+            .WithMany()
+            .UsingEntity<RolePermission>(
+                j => j.HasOne<Permission>()
+                    .WithMany()
+                    .HasForeignKey(rp => rp.PermissionId)
+                    .OnDelete(DeleteBehavior.Cascade),
+                j => j.HasOne<Role>()
+                    .WithMany()
+                    .HasForeignKey(rp => rp.RoleId)
+                    .OnDelete(DeleteBehavior.Cascade),
+                j =>
+                {
+                    j.HasKey(rp => new { rp.RoleId, rp.PermissionId });
+                    j.ToTable("role_permissions");
+                });
     }
 }

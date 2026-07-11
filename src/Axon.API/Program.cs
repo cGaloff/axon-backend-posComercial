@@ -1,10 +1,14 @@
 using System.Text;
 using Axon.API.Middleware;
-using Axon.Application;
+using Axon.Application.Auth.Commands;
+using Axon.Application.Common.Behaviors;
+using Axon.Application.Interfaces;
 using Axon.Domain.Interfaces;
 using Axon.Infrastructure.MultiTenant;
 using Axon.Infrastructure.Persistence;
+using Axon.Infrastructure.Security;
 using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -57,6 +61,10 @@ builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantCon
 builder.Services.AddScoped<TenantResolver>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+// Security
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSettings["Key"]
     ?? throw new InvalidOperationException("La clave 'Jwt:Key' no está configurada.");
@@ -82,9 +90,10 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-var applicationAssembly = typeof(Class1).Assembly;
+var applicationAssembly = typeof(LoginCommand).Assembly;
 
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(applicationAssembly));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 builder.Services.AddValidatorsFromAssembly(applicationAssembly);
 
 var app = builder.Build();
