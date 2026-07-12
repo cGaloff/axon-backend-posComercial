@@ -10,6 +10,7 @@ public class TenantResolutionMiddleware
     private static readonly string[] ExcludedPaths =
     {
         "/auth/register-tenant",
+        "/api/tenants/register",
         "/health"
     };
 

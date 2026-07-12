@@ -1,10 +1,11 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Axon.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace Axon.Infrastructure.Persistence;
 
-public partial class TenantSchemaInitializer
+public partial class TenantSchemaInitializer : ITenantSchemaInitializer
 {
     private readonly AppDbContext _dbContext;
 

@@ -46,11 +46,13 @@ var masterConnectionString = builder.Configuration.GetConnectionString("MasterDb
     ?? throw new InvalidOperationException("La cadena de conexión 'MasterDb' no está configurada.");
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(masterConnectionString));
+builder.Services.AddScoped<IMasterDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
 // TenantDbContext se conecta a la misma base física (multi-tenant por schema);
 // el cambio de schema por request lo hace TenantSchemaInterceptor, ya registrado
 // dentro de TenantDbContext.OnConfiguring a partir del ITenantContext inyectado.
 builder.Services.AddDbContext<TenantDbContext>(options => options.UseNpgsql(masterConnectionString));
+builder.Services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<TenantDbContext>());
 
 // Se registra el tipo concreto porque TenantResolutionMiddleware necesita
 // llamar TenantContext.SetTenant(), que no forma parte de ITenantContext.
@@ -60,6 +62,7 @@ builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantCon
 
 builder.Services.AddScoped<TenantResolver>();
 builder.Services.AddScoped<TenantSchemaInitializer>();
+builder.Services.AddScoped<ITenantSchemaInitializer>(sp => sp.GetRequiredService<TenantSchemaInitializer>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Security

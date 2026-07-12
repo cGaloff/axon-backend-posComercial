@@ -1,10 +1,11 @@
+using Axon.Application.Interfaces;
 using Axon.Domain.Entities;
 using Axon.Infrastructure.Persistence.Configurations;
 using Microsoft.EntityFrameworkCore;
 
 namespace Axon.Infrastructure.Persistence;
 
-public class AppDbContext : DbContext
+public class AppDbContext : DbContext, IMasterDbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
