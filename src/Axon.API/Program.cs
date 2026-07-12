@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Axon.API.Middleware;
 using Axon.Application.Auth.Commands;
 using Axon.Application.Common.Behaviors;
@@ -13,11 +14,14 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => 
+        options.JsonSerializerOptions.Converters
+            .Add(new JsonStringEnumConverter()));
 
 builder.Services.AddSwaggerGen(options =>
 {
