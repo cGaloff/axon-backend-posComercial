@@ -1,5 +1,6 @@
 using Axon.Application.Interfaces;
 using Axon.Domain.Entities;
+using Axon.Domain.Entities.Inventory;
 using Axon.Domain.Interfaces;
 using Axon.Infrastructure.Persistence.Configurations;
 using Axon.Infrastructure.Persistence.Interceptors;
@@ -25,6 +26,20 @@ public class TenantDbContext : DbContext, IApplicationDbContext
 
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
+    public DbSet<Category> Categories => Set<Category>();
+
+    public DbSet<Unit> Units => Set<Unit>();
+
+    public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+
+    public DbSet<Product> Products => Set<Product>();
+
+    public DbSet<AttributeDefinition> AttributeDefinitions => Set<AttributeDefinition>();
+
+    public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
+
+    public DbSet<StockAlert> StockAlerts => Set<StockAlert>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.AddInterceptors(new TenantSchemaInterceptor(_tenantContext));
@@ -37,5 +52,12 @@ public class TenantDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new UserConfiguration());
         modelBuilder.ApplyConfiguration(new RoleConfiguration());
         modelBuilder.ApplyConfiguration(new PermissionConfiguration());
+        modelBuilder.ApplyConfiguration(new CategoryConfiguration());
+        modelBuilder.ApplyConfiguration(new UnitConfiguration());
+        modelBuilder.ApplyConfiguration(new WarehouseConfiguration());
+        modelBuilder.ApplyConfiguration(new ProductConfiguration());
+        modelBuilder.ApplyConfiguration(new AttributeDefinitionConfiguration());
+        modelBuilder.ApplyConfiguration(new InventoryMovementConfiguration());
+        modelBuilder.ApplyConfiguration(new StockAlertConfiguration());
     }
 }

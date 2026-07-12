@@ -51,3 +51,15 @@ WHERE
         (p.module IN ('inventory', 'sales', 'cash_register') AND p.action = 'read')
         OR (p.module = 'reports' AND p.action IN ('read', 'export'))
     ));
+
+INSERT INTO {SCHEMA_NAME}.units (id, name, abbreviation, is_active)
+VALUES
+    (gen_random_uuid(), 'Unidad', 'und', true),
+    (gen_random_uuid(), 'Caja', 'cja', true),
+    (gen_random_uuid(), 'Kilogramo', 'kg', true),
+    (gen_random_uuid(), 'Metro', 'mt', true),
+    (gen_random_uuid(), 'Litro', 'lt', true),
+    (gen_random_uuid(), 'Par', 'par', true);
+
+INSERT INTO {SCHEMA_NAME}.warehouses (id, name, description, is_default, is_active)
+VALUES (gen_random_uuid(), 'Tienda Principal', 'Bodega principal', true, true);
