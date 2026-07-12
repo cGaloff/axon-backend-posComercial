@@ -37,5 +37,8 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 
         builder.Property(t => t.IsActive)
             .HasDefaultValue(true);
+
+        builder.Property(t => t.CreatedAt)
+            .HasDefaultValueSql("now()");
     }
 }

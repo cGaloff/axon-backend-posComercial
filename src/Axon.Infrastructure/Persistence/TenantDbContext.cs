@@ -28,6 +28,7 @@ public class TenantDbContext : DbContext, IApplicationDbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.AddInterceptors(new TenantSchemaInterceptor(_tenantContext));
+        optionsBuilder.UseSnakeCaseNamingConvention();
         base.OnConfiguring(optionsBuilder);
     }
 

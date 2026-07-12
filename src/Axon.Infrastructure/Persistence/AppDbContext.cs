@@ -13,6 +13,12 @@ public class AppDbContext : DbContext
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseSnakeCaseNamingConvention();
+        base.OnConfiguring(optionsBuilder);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new TenantConfiguration());
