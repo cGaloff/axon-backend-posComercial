@@ -105,3 +105,49 @@ CREATE TABLE {SCHEMA_NAME}.stock_alerts (
     is_read BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE {SCHEMA_NAME}.sales (
+    id UUID PRIMARY KEY,
+    sale_number VARCHAR(50) NOT NULL UNIQUE,
+    customer_id UUID NULL,
+    customer_name VARCHAR(200),
+    payment_method VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'Completed',
+    total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    amount_paid NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    change NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    notes TEXT,
+    cash_register_id UUID NOT NULL,
+    created_by UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    voided_at TIMESTAMPTZ,
+    voided_by UUID,
+    void_reason TEXT,
+    returned_at TIMESTAMPTZ,
+    returned_by UUID
+);
+
+CREATE INDEX idx_sales_created_status ON {SCHEMA_NAME}.sales (created_at, status);
+
+CREATE INDEX idx_sales_customer_id ON {SCHEMA_NAME}.sales (customer_id);
+
+CREATE TABLE {SCHEMA_NAME}.sale_items (
+    id UUID PRIMARY KEY,
+    sale_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.sales(id),
+    product_id UUID NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    product_sku VARCHAR(100) NOT NULL,
+    unit_price NUMERIC(12, 2) NOT NULL,
+    quantity INT NOT NULL,
+    discount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    subtotal NUMERIC(12, 2) NOT NULL
+);
+
+CREATE TABLE {SCHEMA_NAME}.sale_returns (
+    id UUID PRIMARY KEY,
+    sale_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.sales(id),
+    reason TEXT NOT NULL,
+    returned_by UUID NOT NULL,
+    returned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    total NUMERIC(12, 2) NOT NULL
+);

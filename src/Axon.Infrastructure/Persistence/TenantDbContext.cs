@@ -1,6 +1,7 @@
 using Axon.Application.Interfaces;
 using Axon.Domain.Entities;
 using Axon.Domain.Entities.Inventory;
+using Axon.Domain.Entities.Sales;
 using Axon.Domain.Interfaces;
 using Axon.Infrastructure.Persistence.Configurations;
 using Axon.Infrastructure.Persistence.Interceptors;
@@ -40,6 +41,10 @@ public class TenantDbContext : DbContext, IApplicationDbContext
 
     public DbSet<StockAlert> StockAlerts => Set<StockAlert>();
 
+    public DbSet<Sale> Sales => Set<Sale>();
+
+    public DbSet<SaleReturn> SaleReturns => Set<SaleReturn>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.AddInterceptors(new TenantSchemaInterceptor(_tenantContext));
@@ -59,5 +64,7 @@ public class TenantDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new AttributeDefinitionConfiguration());
         modelBuilder.ApplyConfiguration(new InventoryMovementConfiguration());
         modelBuilder.ApplyConfiguration(new StockAlertConfiguration());
+        modelBuilder.ApplyConfiguration(new SaleConfiguration());
+        modelBuilder.ApplyConfiguration(new SaleReturnConfiguration());
     }
 }

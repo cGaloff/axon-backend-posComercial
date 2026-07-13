@@ -11,6 +11,7 @@ public class TenantResolutionMiddleware
     {
         "/auth/register-tenant",
         "/api/tenants/register",
+        "/api/webhooks",
         "/health"
     };
 
