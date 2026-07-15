@@ -7,6 +7,7 @@ using Axon.Application.Interfaces;
 using Axon.Domain.Interfaces;
 using Axon.Infrastructure.MultiTenant;
 using Axon.Infrastructure.Persistence;
+using Axon.Infrastructure.Persistence.Repositories;
 using Axon.Infrastructure.Security;
 using Axon.Infrastructure.Services;
 using FluentValidation;
@@ -75,10 +76,15 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // Security
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserContext, CurrentUserContext>();
 
 // Sales
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+
+// Cash Register
+builder.Services.AddScoped<ICashSessionRepository, CashSessionRepository>();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSettings["Key"]

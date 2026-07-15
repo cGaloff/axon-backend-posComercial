@@ -63,3 +63,6 @@ VALUES
 
 INSERT INTO {SCHEMA_NAME}.warehouses (id, name, description, is_default, is_active)
 VALUES (gen_random_uuid(), 'Tienda Principal', 'Bodega principal', true, true);
+
+INSERT INTO {SCHEMA_NAME}.cash_registers (id, name, description, is_default, is_active)
+VALUES (gen_random_uuid(), 'Caja Principal', 'Caja principal de la tienda', true, true);

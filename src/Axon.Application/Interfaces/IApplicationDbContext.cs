@@ -1,7 +1,9 @@
 using Axon.Domain.Entities;
+using Axon.Domain.Entities.CashRegister;
 using Axon.Domain.Entities.Inventory;
 using Axon.Domain.Entities.Sales;
 using Microsoft.EntityFrameworkCore;
+using CashRegisterEntity = Axon.Domain.Entities.CashRegister.CashRegister;
 
 namespace Axon.Application.Interfaces;
 
@@ -17,4 +19,7 @@ public interface IApplicationDbContext
     DbSet<StockAlert> StockAlerts { get; }
     DbSet<Sale> Sales { get; }
     DbSet<SaleReturn> SaleReturns { get; }
+    DbSet<CashRegisterEntity> CashRegisters { get; }
+    DbSet<CashSession> CashSessions { get; }
+    DbSet<CashMovement> CashMovements { get; }
 }

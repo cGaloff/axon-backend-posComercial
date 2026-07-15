@@ -1,11 +1,13 @@
 using Axon.Application.Interfaces;
 using Axon.Domain.Entities;
+using Axon.Domain.Entities.CashRegister;
 using Axon.Domain.Entities.Inventory;
 using Axon.Domain.Entities.Sales;
 using Axon.Domain.Interfaces;
 using Axon.Infrastructure.Persistence.Configurations;
 using Axon.Infrastructure.Persistence.Interceptors;
 using Microsoft.EntityFrameworkCore;
+using CashRegisterEntity = Axon.Domain.Entities.CashRegister.CashRegister;
 
 namespace Axon.Infrastructure.Persistence;
 
@@ -45,6 +47,12 @@ public class TenantDbContext : DbContext, IApplicationDbContext
 
     public DbSet<SaleReturn> SaleReturns => Set<SaleReturn>();
 
+    public DbSet<CashRegisterEntity> CashRegisters => Set<CashRegisterEntity>();
+
+    public DbSet<CashSession> CashSessions => Set<CashSession>();
+
+    public DbSet<CashMovement> CashMovements => Set<CashMovement>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.AddInterceptors(new TenantSchemaInterceptor(_tenantContext));
@@ -66,5 +74,8 @@ public class TenantDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new StockAlertConfiguration());
         modelBuilder.ApplyConfiguration(new SaleConfiguration());
         modelBuilder.ApplyConfiguration(new SaleReturnConfiguration());
+        modelBuilder.ApplyConfiguration(new CashRegisterConfiguration());
+        modelBuilder.ApplyConfiguration(new CashSessionConfiguration());
+        modelBuilder.ApplyConfiguration(new CashMovementConfiguration());
     }
 }

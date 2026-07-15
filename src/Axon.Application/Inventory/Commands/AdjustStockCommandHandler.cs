@@ -12,11 +12,16 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Med
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserContext _currentUserContext;
 
-    public AdjustStockCommandHandler(IApplicationDbContext dbContext, IUnitOfWork unitOfWork)
+    public AdjustStockCommandHandler(
+        IApplicationDbContext dbContext,
+        IUnitOfWork unitOfWork,
+        ICurrentUserContext currentUserContext)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
+        _currentUserContext = currentUserContext;
     }
 
     public async Task<MediatRUnit> Handle(AdjustStockCommand request, CancellationToken cancellationToken)
@@ -39,9 +44,6 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Med
 
         product.AdjustStock(request.Quantity);
 
-        // TODO: CreatedBy debería venir del usuario autenticado (claim "sub" del JWT).
-        // Todavía no existe un ICurrentUserContext en Application que exponga ese dato
-        // dentro de un handler, así que se deja en Guid.Empty hasta que se construya esa pieza.
         var movement = InventoryMovement.Create(
             product.Id,
             warehouse.Id,
@@ -49,7 +51,7 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Med
             request.Quantity,
             stockBefore,
             request.Reason,
-            Guid.Empty);
+            _currentUserContext.UserId);
 
         _dbContext.InventoryMovements.Add(movement);
 

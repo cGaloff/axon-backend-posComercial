@@ -6,6 +6,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="Persistence\Scripts\tenant_schema_template.sql" />
     <EmbeddedResource Include="Persistence\Scripts\tenant_seed.sql" />
   </ItemGroup>

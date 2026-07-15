@@ -1,10 +1,12 @@
 using Axon.Application.Interfaces;
+using Axon.Domain.Entities.CashRegister;
 using Axon.Domain.Entities.Inventory;
 using Axon.Domain.Entities.Sales;
 using Axon.Domain.Exceptions;
 using Axon.Domain.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MediatRUnit = MediatR.Unit;
 
 namespace Axon.Application.Sales.Commands;
@@ -13,11 +15,16 @@ public class ReturnSaleCommandHandler : IRequestHandler<ReturnSaleCommand, Media
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<ReturnSaleCommandHandler> _logger;
 
-    public ReturnSaleCommandHandler(IApplicationDbContext dbContext, IUnitOfWork unitOfWork)
+    public ReturnSaleCommandHandler(
+        IApplicationDbContext dbContext,
+        IUnitOfWork unitOfWork,
+        ILogger<ReturnSaleCommandHandler> logger)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<MediatRUnit> Handle(ReturnSaleCommand request, CancellationToken cancellationToken)
@@ -72,6 +79,40 @@ public class ReturnSaleCommandHandler : IRequestHandler<ReturnSaleCommand, Media
         }
 
         _dbContext.InventoryMovements.AddRange(movements);
+
+        // Solo efectivo y fiado afectan el monto físico de caja; tarjeta y
+        // transferencia no tocan ninguna sesión al devolverse.
+        if (sale.PaymentMethod == PaymentMethod.Cash || sale.PaymentMethod == PaymentMethod.Credit)
+        {
+            var activeSession = await _dbContext.CashSessions
+                .FirstOrDefaultAsync(
+                    s => s.CashRegisterId == sale.CashRegisterId && s.Status == CashSessionStatus.Open,
+                    cancellationToken);
+
+            if (activeSession is not null)
+            {
+                var returnMovement = CashMovement.Create(
+                    activeSession.Id,
+                    CashMovementType.SaleReturn,
+                    sale.Total,
+                    $"Devolución venta {sale.SaleNumber}",
+                    request.ReturnedBy,
+                    sale.Id);
+
+                activeSession.AddCashMovement(sale.Total, CashMovementType.SaleReturn);
+
+                _dbContext.CashMovements.Add(returnMovement);
+            }
+            else
+            {
+                // La caja puede estar cerrada; la devolución sigue siendo válida,
+                // solo no queda reflejada como egreso en ninguna sesión de caja.
+                _logger.LogWarning(
+                    "No hay sesión de caja activa para la caja {CashRegisterId} al devolver la venta {SaleNumber}; no se registró el egreso en caja.",
+                    sale.CashRegisterId,
+                    sale.SaleNumber);
+            }
+        }
 
         await _unitOfWork.CommitAsync(cancellationToken);
 

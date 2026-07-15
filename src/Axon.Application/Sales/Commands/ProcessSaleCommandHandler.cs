@@ -1,4 +1,5 @@
 using Axon.Application.Interfaces;
+using Axon.Domain.Entities.CashRegister;
 using Axon.Domain.Entities.Inventory;
 using Axon.Domain.Entities.Sales;
 using Axon.Domain.Exceptions;
@@ -13,6 +14,7 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICashSessionRepository _cashSessionRepository;
     private readonly IPdfService _pdfService;
     private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;
@@ -20,12 +22,14 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
     public ProcessSaleCommandHandler(
         IApplicationDbContext dbContext,
         IUnitOfWork unitOfWork,
+        ICashSessionRepository cashSessionRepository,
         IPdfService pdfService,
         IEmailService emailService,
         IConfiguration configuration)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
+        _cashSessionRepository = cashSessionRepository;
         _pdfService = pdfService;
         _emailService = emailService;
         _configuration = configuration;
@@ -33,6 +37,15 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
 
     public async Task<ProcessSaleResult> Handle(ProcessSaleCommand request, CancellationToken cancellationToken)
     {
+        // Se verifica ANTES de tocar productos/stock, y la sesión se persiste
+        // en la misma transacción que la venta (un solo CommitAsync al final).
+        var cashSession = await _cashSessionRepository.GetActiveSessionAsync(request.CashRegisterId);
+
+        if (cashSession is null)
+        {
+            throw new DomainException("No hay una sesión de caja abierta. Abra la caja antes de procesar ventas.");
+        }
+
         var productIds = request.Items.Select(i => i.ProductId).ToList();
 
         var products = await _dbContext.Products
@@ -114,9 +127,32 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
             sale.SetAmountPaid(request.AmountPaid);
         }
 
+        var movementType = request.PaymentMethod switch
+        {
+            PaymentMethod.Cash => CashMovementType.CashSale,
+            PaymentMethod.Credit => CashMovementType.CreditSale,
+            PaymentMethod.Card => CashMovementType.CardSale,
+            PaymentMethod.Transfer => CashMovementType.TransferSale,
+            _ => throw new DomainException("Método de pago no soportado")
+        };
+
+        var cashMovement = CashMovement.Create(
+            cashSession.Id,
+            movementType,
+            sale.Total,
+            $"Venta {sale.SaleNumber}",
+            request.CreatedBy,
+            sale.Id);
+
+        // Solo Cash y Credit modifican el monto físico esperado en caja;
+        // Card y Transfer quedan registrados como movimiento informativo.
+        cashSession.AddCashMovement(sale.Total, movementType);
+
         _dbContext.Sales.Add(sale);
         _dbContext.InventoryMovements.AddRange(movements);
         _dbContext.StockAlerts.AddRange(alerts);
+        _dbContext.CashMovements.Add(cashMovement);
+        _cashSessionRepository.Update(cashSession);
 
         await _unitOfWork.CommitAsync(cancellationToken);
 

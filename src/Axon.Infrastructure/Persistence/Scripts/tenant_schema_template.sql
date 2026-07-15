@@ -50,6 +50,14 @@ CREATE TABLE {SCHEMA_NAME}.warehouses (
     is_active BOOLEAN NOT NULL DEFAULT true
 );
 
+CREATE TABLE {SCHEMA_NAME}.cash_registers (
+    id UUID PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    is_default BOOLEAN NOT NULL DEFAULT false,
+    is_active BOOLEAN NOT NULL DEFAULT true
+);
+
 CREATE TABLE {SCHEMA_NAME}.products (
     id UUID PRIMARY KEY,
     sku VARCHAR(100) NOT NULL UNIQUE,
@@ -117,7 +125,7 @@ CREATE TABLE {SCHEMA_NAME}.sales (
     amount_paid NUMERIC(12, 2) NOT NULL DEFAULT 0,
     change NUMERIC(12, 2) NOT NULL DEFAULT 0,
     notes TEXT,
-    cash_register_id UUID NOT NULL,
+    cash_register_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.cash_registers(id),
     created_by UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     voided_at TIMESTAMPTZ,
@@ -151,3 +159,35 @@ CREATE TABLE {SCHEMA_NAME}.sale_returns (
     returned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     total NUMERIC(12, 2) NOT NULL
 );
+
+CREATE TABLE {SCHEMA_NAME}.cash_sessions (
+    id UUID PRIMARY KEY,
+    cash_register_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.cash_registers(id),
+    opened_by UUID NOT NULL,
+    closed_by UUID,
+    opened_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    closed_at TIMESTAMPTZ,
+    initial_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    expected_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    counted_amount NUMERIC(12, 2),
+    difference NUMERIC(12, 2),
+    status VARCHAR(50) NOT NULL DEFAULT 'Open',
+    notes TEXT
+);
+
+CREATE INDEX idx_cash_sessions_register_status ON {SCHEMA_NAME}.cash_sessions (cash_register_id, status);
+
+CREATE INDEX idx_cash_sessions_opened_by ON {SCHEMA_NAME}.cash_sessions (opened_by);
+
+CREATE TABLE {SCHEMA_NAME}.cash_movements (
+    id UUID PRIMARY KEY,
+    cash_session_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.cash_sessions(id),
+    type VARCHAR(50) NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL,
+    description VARCHAR(500) NOT NULL,
+    reference_id UUID,
+    created_by UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_cash_movements_session_created ON {SCHEMA_NAME}.cash_movements (cash_session_id, created_at);
