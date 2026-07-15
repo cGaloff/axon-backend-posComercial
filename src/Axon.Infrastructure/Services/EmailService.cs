@@ -1,9 +1,10 @@
-using System.Net;
-using System.Net.Mail;
 using Axon.Domain.Entities.Sales;
 using Axon.Domain.Interfaces;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MimeKit;
 
 namespace Axon.Infrastructure.Services;
 
@@ -29,26 +30,28 @@ public class EmailService : IEmailService
             var username = _configuration["Email:Username"];
             var password = _configuration["Email:Password"];
 
-            using var client = new SmtpClient(smtpHost, smtpPort)
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(fromName, fromAddress));
+            message.To.Add(new MailboxAddress(customerName, toEmail));
+            message.Subject = $"Recibo de compra - {sale.SaleNumber}";
+
+            var bodyBuilder = new BodyBuilder
             {
-                Credentials = new NetworkCredential(username, password),
-                EnableSsl = true
+                TextBody = $"Hola {customerName}, adjuntamos el recibo de tu compra {sale.SaleNumber}."
             };
+            bodyBuilder.Attachments.Add($"{sale.SaleNumber}.pdf", pdfBytes, new ContentType("application", "pdf"));
+            message.Body = bodyBuilder.ToMessageBody();
 
-            using var message = new MailMessage
+            using var client = new SmtpClient();
+            await client.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.Auto);
+
+            if (!string.IsNullOrEmpty(username))
             {
-                From = new MailAddress(fromAddress, fromName),
-                Subject = $"Recibo de compra - {sale.SaleNumber}",
-                Body = $"Hola {customerName}, adjuntamos el recibo de tu compra {sale.SaleNumber}.",
-                IsBodyHtml = false
-            };
+                await client.AuthenticateAsync(username, password);
+            }
 
-            message.To.Add(toEmail);
-
-            using var attachmentStream = new MemoryStream(pdfBytes);
-            message.Attachments.Add(new Attachment(attachmentStream, $"{sale.SaleNumber}.pdf", "application/pdf"));
-
-            await client.SendMailAsync(message);
+            await client.SendAsync(message);
+            await client.DisconnectAsync(true);
         }
         catch (Exception ex)
         {
