@@ -12,19 +12,24 @@ public class OpenCashSessionCommandHandler : IRequestHandler<OpenCashSessionComm
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICashSessionRepository _cashSessionRepository;
+    private readonly ICurrentUserContext _currentUserContext;
 
     public OpenCashSessionCommandHandler(
         IApplicationDbContext dbContext,
         IUnitOfWork unitOfWork,
-        ICashSessionRepository cashSessionRepository)
+        ICashSessionRepository cashSessionRepository,
+        ICurrentUserContext currentUserContext)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
         _cashSessionRepository = cashSessionRepository;
+        _currentUserContext = currentUserContext;
     }
 
     public async Task<OpenCashSessionResult> Handle(OpenCashSessionCommand request, CancellationToken cancellationToken)
     {
+        var openedBy = _currentUserContext.UserId;
+
         var cashRegister = await _dbContext.CashRegisters
             .SingleOrDefaultAsync(c => c.Id == request.CashRegisterId, cancellationToken);
 
@@ -40,7 +45,7 @@ public class OpenCashSessionCommandHandler : IRequestHandler<OpenCashSessionComm
             throw new DomainException("Ya existe una sesión abierta para esta caja");
         }
 
-        var session = CashSession.Create(request.CashRegisterId, request.OpenedBy, request.InitialAmount);
+        var session = CashSession.Create(request.CashRegisterId, openedBy, request.InitialAmount);
 
         await _cashSessionRepository.AddAsync(session);
 
@@ -54,7 +59,7 @@ public class OpenCashSessionCommandHandler : IRequestHandler<OpenCashSessionComm
                 CashMovementType.OpeningAmount,
                 request.InitialAmount,
                 "Apertura de caja",
-                request.OpenedBy);
+                openedBy);
 
             _dbContext.CashMovements.Add(openingMovement);
         }

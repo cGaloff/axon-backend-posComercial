@@ -15,6 +15,7 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICashSessionRepository _cashSessionRepository;
+    private readonly ICurrentUserContext _currentUserContext;
     private readonly IPdfService _pdfService;
     private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;
@@ -23,6 +24,7 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
         IApplicationDbContext dbContext,
         IUnitOfWork unitOfWork,
         ICashSessionRepository cashSessionRepository,
+        ICurrentUserContext currentUserContext,
         IPdfService pdfService,
         IEmailService emailService,
         IConfiguration configuration)
@@ -30,6 +32,7 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
         _cashSessionRepository = cashSessionRepository;
+        _currentUserContext = currentUserContext;
         _pdfService = pdfService;
         _emailService = emailService;
         _configuration = configuration;
@@ -45,6 +48,8 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
         {
             throw new DomainException("No hay una sesión de caja abierta. Abra la caja antes de procesar ventas.");
         }
+
+        var createdBy = _currentUserContext.UserId;
 
         var productIds = request.Items.Select(i => i.ProductId).ToList();
 
@@ -81,7 +86,7 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
         var sale = Sale.Create(
             request.PaymentMethod,
             request.CashRegisterId,
-            request.CreatedBy,
+            createdBy,
             request.CustomerId,
             request.CustomerName,
             request.Notes);
@@ -114,7 +119,7 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
                 -item.Quantity,
                 stockBefore,
                 $"Venta {sale.SaleNumber}",
-                request.CreatedBy));
+                createdBy));
 
             if (product.Stock <= product.MinStock)
             {
@@ -141,7 +146,7 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
             movementType,
             sale.Total,
             $"Venta {sale.SaleNumber}",
-            request.CreatedBy,
+            createdBy,
             sale.Id);
 
         // Solo Cash y Credit modifican el monto físico esperado en caja;

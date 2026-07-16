@@ -15,20 +15,25 @@ public class ReturnSaleCommandHandler : IRequestHandler<ReturnSaleCommand, Media
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserContext _currentUserContext;
     private readonly ILogger<ReturnSaleCommandHandler> _logger;
 
     public ReturnSaleCommandHandler(
         IApplicationDbContext dbContext,
         IUnitOfWork unitOfWork,
+        ICurrentUserContext currentUserContext,
         ILogger<ReturnSaleCommandHandler> logger)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
+        _currentUserContext = currentUserContext;
         _logger = logger;
     }
 
     public async Task<MediatRUnit> Handle(ReturnSaleCommand request, CancellationToken cancellationToken)
     {
+        var returnedBy = _currentUserContext.UserId;
+
         var sale = await _dbContext.Sales
             .Include(s => s.Items)
             .SingleOrDefaultAsync(s => s.Id == request.SaleId, cancellationToken);
@@ -38,9 +43,9 @@ public class ReturnSaleCommandHandler : IRequestHandler<ReturnSaleCommand, Media
             throw new DomainException("La venta no existe");
         }
 
-        sale.MarkAsReturned(request.ReturnedBy);
+        sale.MarkAsReturned(returnedBy);
 
-        var saleReturn = SaleReturn.Create(sale.Id, request.Reason, request.ReturnedBy, sale.Total);
+        var saleReturn = SaleReturn.Create(sale.Id, request.Reason, returnedBy, sale.Total);
         _dbContext.SaleReturns.Add(saleReturn);
 
         var warehouse = await _dbContext.Warehouses.SingleOrDefaultAsync(w => w.IsDefault, cancellationToken);
@@ -75,7 +80,7 @@ public class ReturnSaleCommandHandler : IRequestHandler<ReturnSaleCommand, Media
                 item.Quantity,
                 stockBefore,
                 $"Devolución venta {sale.SaleNumber}",
-                request.ReturnedBy));
+                returnedBy));
         }
 
         _dbContext.InventoryMovements.AddRange(movements);
@@ -96,7 +101,7 @@ public class ReturnSaleCommandHandler : IRequestHandler<ReturnSaleCommand, Media
                     CashMovementType.SaleReturn,
                     sale.Total,
                     $"Devolución venta {sale.SaleNumber}",
-                    request.ReturnedBy,
+                    returnedBy,
                     sale.Id);
 
                 activeSession.AddCashMovement(sale.Total, CashMovementType.SaleReturn);

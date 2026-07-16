@@ -9,9 +9,6 @@ public class CloseCashSessionCommandValidator : AbstractValidator<CloseCashSessi
         RuleFor(x => x.SessionId)
             .NotEmpty();
 
-        RuleFor(x => x.ClosedBy)
-            .NotEmpty();
-
         RuleFor(x => x.CountedAmount)
             .GreaterThanOrEqualTo(0);
     }

@@ -4,7 +4,6 @@ namespace Axon.Application.CashRegister.Commands;
 
 public record CloseCashSessionCommand(
     Guid SessionId,
-    Guid ClosedBy,
     decimal CountedAmount,
     string? Notes,
     bool ForceClose = false) : IRequest<CloseCashSessionResult>;

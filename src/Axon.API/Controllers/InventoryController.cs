@@ -1,5 +1,6 @@
 using Axon.API.Common;
 using Axon.API.DTOs.Inventory;
+using Axon.API.Filters;
 using Axon.Application.Common.Models;
 using Axon.Application.Inventory.Commands;
 using Axon.Application.Inventory.DTOs;
@@ -28,6 +29,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpGet("products")]
+    [RequirePermission("inventory:read")]
     public async Task<IActionResult> GetProducts(
         [FromQuery] string? search,
         [FromQuery] Guid? categoryId,
@@ -55,6 +57,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("products")]
+    [RequirePermission("inventory:write")]
     public async Task<IActionResult> CreateProduct(CreateProductRequest request)
     {
         var command = new CreateProductCommand(
@@ -74,6 +77,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("products/{id:guid}/adjust-stock")]
+    [RequirePermission("inventory:write")]
     public async Task<IActionResult> AdjustStock(Guid id, AdjustStockRequest request)
     {
         var command = new AdjustStockCommand(id, request.Quantity, request.Type, request.Reason);

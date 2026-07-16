@@ -1,5 +1,6 @@
 using Axon.API.Common;
 using Axon.API.DTOs.Sales;
+using Axon.API.Filters;
 using Axon.Application.Common.Models;
 using Axon.Application.Sales.Commands;
 using Axon.Application.Sales.DTOs;
@@ -24,13 +25,13 @@ public class SalesController : ControllerBase
     }
 
     [HttpPost]
+    [RequirePermission("sales:write")]
     public async Task<IActionResult> ProcessSale(ProcessSaleRequest request)
     {
         var command = new ProcessSaleCommand(
             request.Items.Select(i => new SaleItemRequest(i.ProductId, i.Quantity, i.Discount)).ToList(),
             request.PaymentMethod,
             request.CashRegisterId,
-            request.CreatedBy,
             request.AmountPaid,
             request.CustomerId,
             request.CustomerName,
@@ -43,14 +44,16 @@ public class SalesController : ControllerBase
     }
 
     [HttpPost("{id:guid}/return")]
+    [RequirePermission("sales:write")]
     public async Task<IActionResult> ReturnSale(Guid id, ReturnSaleRequest request)
     {
-        await _mediator.Send(new ReturnSaleCommand(id, request.Reason, request.ReturnedBy));
+        await _mediator.Send(new ReturnSaleCommand(id, request.Reason));
 
         return Ok(ApiResponse<string>.Ok("ok", "Venta devuelta exitosamente"));
     }
 
     [HttpGet]
+    [RequirePermission("sales:read")]
     public async Task<IActionResult> GetSalesHistory(
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
@@ -67,6 +70,7 @@ public class SalesController : ControllerBase
     }
 
     [HttpGet("{id:guid}/receipt")]
+    [RequirePermission("sales:read")]
     public async Task<IActionResult> GetReceipt(Guid id)
     {
         var pdf = await _mediator.Send(new GetSaleReceiptQuery(id));

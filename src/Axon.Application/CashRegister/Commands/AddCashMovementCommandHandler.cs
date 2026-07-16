@@ -11,15 +11,18 @@ public class AddCashMovementCommandHandler : IRequestHandler<AddCashMovementComm
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICashSessionRepository _cashSessionRepository;
+    private readonly ICurrentUserContext _currentUserContext;
 
     public AddCashMovementCommandHandler(
         IApplicationDbContext dbContext,
         IUnitOfWork unitOfWork,
-        ICashSessionRepository cashSessionRepository)
+        ICashSessionRepository cashSessionRepository,
+        ICurrentUserContext currentUserContext)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
         _cashSessionRepository = cashSessionRepository;
+        _currentUserContext = currentUserContext;
     }
 
     public async Task<Guid> Handle(AddCashMovementCommand request, CancellationToken cancellationToken)
@@ -36,7 +39,7 @@ public class AddCashMovementCommandHandler : IRequestHandler<AddCashMovementComm
             request.Type,
             request.Amount,
             request.Description,
-            request.CreatedBy,
+            _currentUserContext.UserId,
             request.ReferenceId);
 
         // session.AddCashMovement ya valida internamente que Status == Open.

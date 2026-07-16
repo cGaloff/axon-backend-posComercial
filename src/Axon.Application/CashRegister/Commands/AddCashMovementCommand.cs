@@ -8,5 +8,4 @@ public record AddCashMovementCommand(
     CashMovementType Type,
     decimal Amount,
     string Description,
-    Guid CreatedBy,
     Guid? ReferenceId = null) : IRequest<Guid>;

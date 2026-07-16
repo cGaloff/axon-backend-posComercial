@@ -9,7 +9,6 @@ public record ProcessSaleCommand(
     List<SaleItemRequest> Items,
     PaymentMethod PaymentMethod,
     Guid CashRegisterId,
-    Guid CreatedBy,
     decimal AmountPaid,
     Guid? CustomerId,
     string? CustomerName,

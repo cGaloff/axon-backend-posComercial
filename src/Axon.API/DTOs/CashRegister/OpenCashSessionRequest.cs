@@ -1,3 +1,3 @@
 namespace Axon.API.DTOs.CashRegister;
 
-public record OpenCashSessionRequest(Guid CashRegisterId, Guid OpenedBy, decimal InitialAmount);
+public record OpenCashSessionRequest(Guid CashRegisterId, decimal InitialAmount);

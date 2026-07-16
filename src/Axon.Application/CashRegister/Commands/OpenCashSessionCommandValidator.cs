@@ -9,9 +9,6 @@ public class OpenCashSessionCommandValidator : AbstractValidator<OpenCashSession
         RuleFor(x => x.CashRegisterId)
             .NotEmpty();
 
-        RuleFor(x => x.OpenedBy)
-            .NotEmpty();
-
         RuleFor(x => x.InitialAmount)
             .GreaterThanOrEqualTo(0);
     }

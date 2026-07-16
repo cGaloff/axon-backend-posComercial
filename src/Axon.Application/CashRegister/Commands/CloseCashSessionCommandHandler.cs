@@ -8,15 +8,22 @@ public class CloseCashSessionCommandHandler : IRequestHandler<CloseCashSessionCo
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICashSessionRepository _cashSessionRepository;
+    private readonly ICurrentUserContext _currentUserContext;
 
-    public CloseCashSessionCommandHandler(IUnitOfWork unitOfWork, ICashSessionRepository cashSessionRepository)
+    public CloseCashSessionCommandHandler(
+        IUnitOfWork unitOfWork,
+        ICashSessionRepository cashSessionRepository,
+        ICurrentUserContext currentUserContext)
     {
         _unitOfWork = unitOfWork;
         _cashSessionRepository = cashSessionRepository;
+        _currentUserContext = currentUserContext;
     }
 
     public async Task<CloseCashSessionResult> Handle(CloseCashSessionCommand request, CancellationToken cancellationToken)
     {
+        var closedBy = _currentUserContext.UserId;
+
         var session = await _cashSessionRepository.GetByIdAsync(request.SessionId);
 
         if (session is null)
@@ -24,25 +31,24 @@ public class CloseCashSessionCommandHandler : IRequestHandler<CloseCashSessionCo
             throw new DomainException("La sesión no existe");
         }
 
-        // TODO: validar que ClosedBy tiene rol
-        // Admin o Propietario cuando exista ICurrentUserContext.
-        // Actualmente cualquier usuario autenticado puede
-        // forzar el cierre — gap de seguridad conocido.
         if (request.ForceClose)
         {
-            session.ForceClose(request.ClosedBy, request.Notes ?? string.Empty);
+            // Gap de seguridad resuelto: solo Propietario o Administrador puede forzar el cierre.
+            if (!_currentUserContext.IsInRole("Propietario") && !_currentUserContext.IsInRole("Administrador"))
+            {
+                throw new DomainException("Solo el Propietario o Administrador puede forzar el cierre de caja");
+            }
+
+            session.ForceClose(closedBy, request.Notes ?? string.Empty);
         }
         else
         {
-            // Verificación de rol (Admin/Propietario) diferida hasta que exista un
-            // mecanismo de permisos por rol: por ahora solo se exige que quien
-            // cierra sea quien abrió la sesión.
-            if (request.ClosedBy != session.OpenedBy)
+            if (closedBy != session.OpenedBy)
             {
                 throw new DomainException("Solo el cajero que abrió la sesión puede cerrarla");
             }
 
-            session.Close(request.ClosedBy, request.CountedAmount, request.Notes);
+            session.Close(closedBy, request.CountedAmount, request.Notes);
         }
 
         _cashSessionRepository.Update(session);

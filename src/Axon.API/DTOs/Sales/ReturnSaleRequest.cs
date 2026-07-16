@@ -1,3 +1,3 @@
 namespace Axon.API.DTOs.Sales;
 
-public record ReturnSaleRequest(string Reason, Guid ReturnedBy);
+public record ReturnSaleRequest(string Reason);

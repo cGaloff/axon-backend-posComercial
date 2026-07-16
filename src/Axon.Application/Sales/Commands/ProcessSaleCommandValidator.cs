@@ -20,9 +20,6 @@ public class ProcessSaleCommandValidator : AbstractValidator<ProcessSaleCommand>
         RuleFor(x => x.CashRegisterId)
             .NotEmpty();
 
-        RuleFor(x => x.CreatedBy)
-            .NotEmpty();
-
         RuleFor(x => x.AmountPaid)
             .GreaterThanOrEqualTo(0);
 

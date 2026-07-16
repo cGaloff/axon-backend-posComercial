@@ -1,5 +1,6 @@
 using Axon.API.Common;
 using Axon.API.DTOs.CashRegister;
+using Axon.API.Filters;
 using Axon.Application.CashRegister.Commands;
 using Axon.Application.CashRegister.Queries;
 using MediatR;
@@ -21,6 +22,7 @@ public class CashRegisterController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission("cash_register:read")]
     public async Task<IActionResult> GetCashRegisters()
     {
         var result = await _mediator.Send(new GetCashRegistersQuery());
@@ -29,9 +31,10 @@ public class CashRegisterController : ControllerBase
     }
 
     [HttpPost("sessions/open")]
+    [RequirePermission("cash_register:write")]
     public async Task<IActionResult> OpenSession(OpenCashSessionRequest request)
     {
-        var command = new OpenCashSessionCommand(request.CashRegisterId, request.OpenedBy, request.InitialAmount);
+        var command = new OpenCashSessionCommand(request.CashRegisterId, request.InitialAmount);
 
         var result = await _mediator.Send(command);
 
@@ -39,9 +42,10 @@ public class CashRegisterController : ControllerBase
     }
 
     [HttpPost("sessions/{id:guid}/close")]
+    [RequirePermission("cash_register:write")]
     public async Task<IActionResult> CloseSession(Guid id, CloseCashSessionRequest request)
     {
-        var command = new CloseCashSessionCommand(id, request.ClosedBy, request.CountedAmount, request.Notes, request.ForceClose);
+        var command = new CloseCashSessionCommand(id, request.CountedAmount, request.Notes, request.ForceClose);
 
         var result = await _mediator.Send(command);
 
@@ -49,6 +53,7 @@ public class CashRegisterController : ControllerBase
     }
 
     [HttpGet("sessions/{id:guid}/summary")]
+    [RequirePermission("cash_register:read")]
     public async Task<IActionResult> GetSessionSummary(Guid id)
     {
         var result = await _mediator.Send(new GetCashSessionSummaryQuery(id));
@@ -57,9 +62,10 @@ public class CashRegisterController : ControllerBase
     }
 
     [HttpPost("sessions/{id:guid}/movements")]
+    [RequirePermission("cash_register:write")]
     public async Task<IActionResult> AddMovement(Guid id, AddCashMovementRequest request)
     {
-        var command = new AddCashMovementCommand(id, request.Type, request.Amount, request.Description, request.CreatedBy);
+        var command = new AddCashMovementCommand(id, request.Type, request.Amount, request.Description);
 
         var movementId = await _mediator.Send(command);
 
