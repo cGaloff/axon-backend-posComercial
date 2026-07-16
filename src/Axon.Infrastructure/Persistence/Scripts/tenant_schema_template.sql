@@ -71,7 +71,8 @@ CREATE TABLE {SCHEMA_NAME}.products (
     unit_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.units(id),
     attributes JSONB,
     is_active BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    tax_percentage NUMERIC(5, 2) NOT NULL DEFAULT 0
 );
 
 CREATE INDEX idx_products_attributes ON {SCHEMA_NAME}.products USING GIN (attributes);
@@ -148,7 +149,10 @@ CREATE TABLE {SCHEMA_NAME}.sale_items (
     unit_price NUMERIC(12, 2) NOT NULL,
     quantity INT NOT NULL,
     discount NUMERIC(12, 2) NOT NULL DEFAULT 0,
-    subtotal NUMERIC(12, 2) NOT NULL
+    subtotal NUMERIC(12, 2) NOT NULL,
+    tax_percentage NUMERIC(5, 2) NOT NULL DEFAULT 0,
+    tax_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    subtotal_base NUMERIC(12, 2) NOT NULL DEFAULT 0
 );
 
 CREATE TABLE {SCHEMA_NAME}.sale_returns (
@@ -191,3 +195,17 @@ CREATE TABLE {SCHEMA_NAME}.cash_movements (
 );
 
 CREATE INDEX idx_cash_movements_session_created ON {SCHEMA_NAME}.cash_movements (cash_session_id, created_at);
+
+CREATE TABLE {SCHEMA_NAME}.tenant_config (
+    id UUID PRIMARY KEY,
+    business_name VARCHAR(200) NOT NULL,
+    nit VARCHAR(20),
+    address VARCHAR(500),
+    phone VARCHAR(50),
+    email VARCHAR(200),
+    website VARCHAR(200),
+    logo_url VARCHAR(500),
+    is_responsable_iva BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

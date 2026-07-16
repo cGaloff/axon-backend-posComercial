@@ -53,6 +53,8 @@ public class TenantDbContext : DbContext, IApplicationDbContext
 
     public DbSet<CashMovement> CashMovements => Set<CashMovement>();
 
+    public DbSet<TenantConfig> TenantConfigs => Set<TenantConfig>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.AddInterceptors(new TenantSchemaInterceptor(_tenantContext));
@@ -77,5 +79,6 @@ public class TenantDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new CashRegisterConfiguration());
         modelBuilder.ApplyConfiguration(new CashSessionConfiguration());
         modelBuilder.ApplyConfiguration(new CashMovementConfiguration());
+        modelBuilder.ApplyConfiguration(new TenantConfigConfiguration());
     }
 }

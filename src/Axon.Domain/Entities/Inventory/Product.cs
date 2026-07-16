@@ -18,6 +18,7 @@ public class Product
     public Dictionary<string, JsonElement> Attributes { get; private set; } = new();
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }
+    public decimal TaxPercentage { get; private set; }
 
     private Product()
     {
@@ -30,7 +31,8 @@ public class Product
         decimal cost,
         int minStock,
         Guid categoryId,
-        Guid unitId)
+        Guid unitId,
+        decimal taxPercentage = 0)
     {
         if (string.IsNullOrWhiteSpace(sku))
         {
@@ -57,6 +59,8 @@ public class Product
             throw new DomainException("El stock mínimo no puede ser negativo.");
         }
 
+        ValidateTaxPercentage(taxPercentage);
+
         return new Product
         {
             Id = Guid.NewGuid(),
@@ -71,8 +75,24 @@ public class Product
             UnitId = unitId,
             Attributes = new Dictionary<string, JsonElement>(),
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            TaxPercentage = taxPercentage
         };
+    }
+
+    public void UpdateTaxPercentage(decimal taxPercentage)
+    {
+        ValidateTaxPercentage(taxPercentage);
+
+        TaxPercentage = taxPercentage;
+    }
+
+    private static void ValidateTaxPercentage(decimal taxPercentage)
+    {
+        if (taxPercentage != 0 && taxPercentage != 5 && taxPercentage != 19)
+        {
+            throw new DomainException("Porcentaje de IVA inválido. Valores permitidos: 0, 5, 19");
+        }
     }
 
     public void AdjustStock(int quantity)

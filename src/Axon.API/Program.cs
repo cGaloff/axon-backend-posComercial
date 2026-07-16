@@ -80,11 +80,15 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserContext, CurrentUserContext>();
 
 // Sales
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Cash Register
 builder.Services.AddScoped<ICashSessionRepository, CashSessionRepository>();
+
+// Configuración del tenant
+builder.Services.AddScoped<ITenantConfigRepository, TenantConfigRepository>();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSettings["Key"]

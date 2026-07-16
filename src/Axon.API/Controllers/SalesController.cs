@@ -5,6 +5,7 @@ using Axon.Application.Common.Models;
 using Axon.Application.Sales.Commands;
 using Axon.Application.Sales.DTOs;
 using Axon.Application.Sales.Queries;
+using Axon.Application.TenantConfig.Queries;
 using Axon.Domain.Entities.Sales;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -76,5 +77,14 @@ public class SalesController : ControllerBase
         var pdf = await _mediator.Send(new GetSaleReceiptQuery(id));
 
         return File(pdf, "application/pdf", $"{id}.pdf");
+    }
+
+    [HttpGet("{id:guid}/tax-summary")]
+    [RequirePermission("sales:read")]
+    public async Task<IActionResult> GetTaxSummary(Guid id)
+    {
+        var result = await _mediator.Send(new GetSaleTaxSummaryQuery(id));
+
+        return Ok(ApiResponse<SaleTaxSummaryDto>.Ok(result));
     }
 }

@@ -68,6 +68,18 @@ public class SaleConfiguration : IEntityTypeConfiguration<Sale>
 
             items.Property(i => i.Subtotal)
                 .HasColumnType("decimal(12,2)");
+
+            items.Property(i => i.TaxPercentage)
+                .HasColumnType("decimal(5,2)")
+                .HasDefaultValue(0m);
+
+            items.Property(i => i.TaxAmount)
+                .HasColumnType("decimal(12,2)")
+                .HasDefaultValue(0m);
+
+            items.Property(i => i.SubtotalBase)
+                .HasColumnType("decimal(12,2)")
+                .HasDefaultValue(0m);
         });
 
         builder.HasIndex(s => new { s.CreatedAt, s.Status });

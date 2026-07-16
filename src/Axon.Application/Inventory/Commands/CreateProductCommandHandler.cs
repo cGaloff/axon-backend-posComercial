@@ -35,7 +35,8 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             request.Cost,
             request.MinStock,
             request.CategoryId,
-            request.UnitId);
+            request.UnitId,
+            request.TaxPercentage);
 
         // Product.Create() no acepta description (no está en su firma); UpdateDetails()
         // es el único método que la fija, así que se llama inmediatamente después con

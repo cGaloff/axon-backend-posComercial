@@ -12,4 +12,5 @@ public record UpdateProductCommand(
     int MinStock,
     Guid CategoryId,
     Guid UnitId,
-    Dictionary<string, string>? Attributes) : IRequest<MediatRUnit>;
+    Dictionary<string, string>? Attributes,
+    decimal TaxPercentage = 0) : IRequest<MediatRUnit>;

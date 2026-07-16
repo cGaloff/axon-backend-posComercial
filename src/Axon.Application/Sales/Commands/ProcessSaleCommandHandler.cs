@@ -6,7 +6,6 @@ using Axon.Domain.Exceptions;
 using Axon.Domain.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace Axon.Application.Sales.Commands;
 
@@ -18,7 +17,7 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
     private readonly ICurrentUserContext _currentUserContext;
     private readonly IPdfService _pdfService;
     private readonly IEmailService _emailService;
-    private readonly IConfiguration _configuration;
+    private readonly ITenantConfigRepository _tenantConfigRepository;
 
     public ProcessSaleCommandHandler(
         IApplicationDbContext dbContext,
@@ -27,7 +26,7 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
         ICurrentUserContext currentUserContext,
         IPdfService pdfService,
         IEmailService emailService,
-        IConfiguration configuration)
+        ITenantConfigRepository tenantConfigRepository)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
@@ -35,11 +34,14 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
         _currentUserContext = currentUserContext;
         _pdfService = pdfService;
         _emailService = emailService;
-        _configuration = configuration;
+        _tenantConfigRepository = tenantConfigRepository;
     }
 
     public async Task<ProcessSaleResult> Handle(ProcessSaleCommand request, CancellationToken cancellationToken)
     {
+        var config = await _tenantConfigRepository.GetAsync()
+            ?? throw new DomainException("Configuración del tenant no encontrada");
+
         // Se verifica ANTES de tocar productos/stock, y la sesión se persiste
         // en la misma transacción que la venta (un solo CommitAsync al final).
         var cashSession = await _cashSessionRepository.GetActiveSessionAsync(request.CashRegisterId);
@@ -98,14 +100,17 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
         {
             var product = productsById[item.ProductId];
 
+            var taxPct = config.IsResponsableIva ? product.TaxPercentage : 0m;
+
             var saleItem = SaleItem.Create(
-                sale.Id,
-                product.Id,
-                product.Name,
-                product.Sku,
-                product.Price,
-                item.Quantity,
-                item.Discount);
+                saleId: sale.Id,
+                productId: product.Id,
+                productName: product.Name,
+                productSku: product.Sku,
+                unitPrice: product.Price,
+                quantity: item.Quantity,
+                discount: item.Discount,
+                taxPercentage: taxPct);
 
             sale.AddItem(saleItem);
 
@@ -162,8 +167,7 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
         await _unitOfWork.CommitAsync(cancellationToken);
 
         // El PDF se genera después del commit para no mantener I/O dentro de la transacción.
-        var businessName = _configuration["BusinessName"] ?? "Axon POS";
-        var pdf = _pdfService.GenerateSaleReceipt(sale, businessName);
+        var pdf = _pdfService.GenerateSaleReceipt(sale, config);
 
         if (!string.IsNullOrWhiteSpace(request.CustomerEmail))
         {

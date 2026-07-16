@@ -13,6 +13,9 @@ public class SaleItem
     public int Quantity { get; private set; }
     public decimal Discount { get; private set; }
     public decimal Subtotal { get; private set; }
+    public decimal TaxPercentage { get; private set; }
+    public decimal TaxAmount { get; private set; }
+    public decimal SubtotalBase { get; private set; }
 
     private SaleItem()
     {
@@ -25,7 +28,8 @@ public class SaleItem
         string productSku,
         decimal unitPrice,
         int quantity,
-        decimal discount = 0)
+        decimal discount = 0,
+        decimal taxPercentage = 0)
     {
         if (quantity <= 0)
         {
@@ -49,6 +53,12 @@ public class SaleItem
             throw new DomainException("El descuento no puede ser mayor al subtotal");
         }
 
+        // Subtotal incluye IVA (precio final que paga el cliente); SubtotalBase es la
+        // base gravable obtenida al "desquitar" el IVA del subtotal con descuento aplicado.
+        var subtotal = grossSubtotal - discount;
+        var subtotalBase = subtotal / (1 + taxPercentage / 100);
+        var taxAmount = subtotal - subtotalBase;
+
         return new SaleItem
         {
             Id = Guid.NewGuid(),
@@ -59,7 +69,10 @@ public class SaleItem
             UnitPrice = unitPrice,
             Quantity = quantity,
             Discount = discount,
-            Subtotal = grossSubtotal - discount
+            Subtotal = subtotal,
+            TaxPercentage = taxPercentage,
+            TaxAmount = taxAmount,
+            SubtotalBase = subtotalBase
         };
     }
 }

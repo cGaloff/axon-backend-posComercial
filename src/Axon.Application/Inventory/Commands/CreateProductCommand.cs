@@ -11,4 +11,5 @@ public record CreateProductCommand(
     int MinStock,
     Guid CategoryId,
     Guid UnitId,
-    Dictionary<string, string>? Attributes) : IRequest<Guid>;
+    Dictionary<string, string>? Attributes,
+    decimal TaxPercentage = 0) : IRequest<Guid>;

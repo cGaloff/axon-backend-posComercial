@@ -38,6 +38,8 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
             request.CategoryId,
             request.UnitId);
 
+        product.UpdateTaxPercentage(request.TaxPercentage);
+
         if (request.Attributes is { Count: > 0 })
         {
             var normalizedAttributes = await NormalizeAttributesAsync(request.Attributes, request.CategoryId, cancellationToken);

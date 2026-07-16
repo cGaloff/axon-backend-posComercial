@@ -3,7 +3,6 @@ using Axon.Domain.Exceptions;
 using Axon.Domain.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace Axon.Application.Sales.Queries;
 
@@ -11,13 +10,16 @@ public class GetSaleReceiptQueryHandler : IRequestHandler<GetSaleReceiptQuery, b
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IPdfService _pdfService;
-    private readonly IConfiguration _configuration;
+    private readonly ITenantConfigRepository _tenantConfigRepository;
 
-    public GetSaleReceiptQueryHandler(IApplicationDbContext dbContext, IPdfService pdfService, IConfiguration configuration)
+    public GetSaleReceiptQueryHandler(
+        IApplicationDbContext dbContext,
+        IPdfService pdfService,
+        ITenantConfigRepository tenantConfigRepository)
     {
         _dbContext = dbContext;
         _pdfService = pdfService;
-        _configuration = configuration;
+        _tenantConfigRepository = tenantConfigRepository;
     }
 
     public async Task<byte[]> Handle(GetSaleReceiptQuery request, CancellationToken cancellationToken)
@@ -31,8 +33,9 @@ public class GetSaleReceiptQueryHandler : IRequestHandler<GetSaleReceiptQuery, b
             throw new DomainException("La venta no existe");
         }
 
-        var businessName = _configuration["BusinessName"] ?? "Axon POS";
+        var config = await _tenantConfigRepository.GetAsync()
+            ?? throw new DomainException("Configuración del tenant no encontrada");
 
-        return _pdfService.GenerateSaleReceipt(sale, businessName);
+        return _pdfService.GenerateSaleReceipt(sale, config);
     }
 }

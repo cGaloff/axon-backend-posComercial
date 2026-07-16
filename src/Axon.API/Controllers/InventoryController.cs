@@ -69,7 +69,8 @@ public class InventoryController : ControllerBase
             request.MinStock,
             request.CategoryId,
             request.UnitId,
-            request.Attributes);
+            request.Attributes,
+            request.TaxPercentage);
 
         var id = await _mediator.Send(command);
 
@@ -109,7 +110,8 @@ public class InventoryController : ControllerBase
             request.MinStock,
             request.CategoryId,
             request.UnitId,
-            request.Attributes);
+            request.Attributes,
+            request.TaxPercentage);
 
         await _mediator.Send(command);
 
