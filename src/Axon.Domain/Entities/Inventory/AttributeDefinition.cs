@@ -49,4 +49,16 @@ public class AttributeDefinition
             IsActive = true
         };
     }
+
+    public void Configure(List<string>? options, bool isFilterable, int sortOrder)
+    {
+        if (Type == "select" && (options is null || options.Count == 0))
+        {
+            throw new DomainException("Los atributos de tipo 'select' requieren al menos una opción.");
+        }
+
+        Options = options;
+        IsFilterable = isFilterable;
+        SortOrder = sortOrder;
+    }
 }

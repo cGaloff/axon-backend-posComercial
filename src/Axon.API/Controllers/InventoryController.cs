@@ -86,4 +86,105 @@ public class InventoryController : ControllerBase
 
         return Ok(ApiResponse<string>.Ok("ok", "Stock ajustado exitosamente"));
     }
+
+    [HttpGet("products/{id:guid}")]
+    [RequirePermission("inventory:read")]
+    public async Task<IActionResult> GetProductById(Guid id)
+    {
+        var result = await _mediator.Send(new GetProductByIdQuery(id));
+
+        return Ok(ApiResponse<ProductDto>.Ok(result));
+    }
+
+    [HttpPut("products/{id:guid}")]
+    [RequirePermission("inventory:write")]
+    public async Task<IActionResult> UpdateProduct(Guid id, UpdateProductRequest request)
+    {
+        var command = new UpdateProductCommand(
+            id,
+            request.Name,
+            request.Description,
+            request.Price,
+            request.Cost,
+            request.MinStock,
+            request.CategoryId,
+            request.UnitId,
+            request.Attributes);
+
+        await _mediator.Send(command);
+
+        return Ok(ApiResponse<string>.Ok("ok", "Producto actualizado exitosamente"));
+    }
+
+    [HttpDelete("products/{id:guid}")]
+    [RequirePermission("inventory:write")]
+    public async Task<IActionResult> DeactivateProduct(Guid id)
+    {
+        await _mediator.Send(new DeactivateProductCommand(id));
+
+        return Ok(ApiResponse<string>.Ok("ok", "Producto desactivado exitosamente"));
+    }
+
+    [HttpGet("categories")]
+    [RequirePermission("inventory:read")]
+    public async Task<IActionResult> GetCategories([FromQuery] bool includeInactive = false)
+    {
+        var result = await _mediator.Send(new GetCategoriesQuery(includeInactive));
+
+        return Ok(ApiResponse<List<CategoryDto>>.Ok(result));
+    }
+
+    [HttpPost("categories")]
+    [RequirePermission("inventory:write")]
+    public async Task<IActionResult> CreateCategory(CreateCategoryRequest request)
+    {
+        var id = await _mediator.Send(new CreateCategoryCommand(request.Name, request.Description));
+
+        return StatusCode(StatusCodes.Status201Created, ApiResponse<Guid>.Ok(id, "Categoría creada exitosamente"));
+    }
+
+    [HttpGet("units")]
+    [RequirePermission("inventory:read")]
+    public async Task<IActionResult> GetUnits()
+    {
+        var result = await _mediator.Send(new GetUnitsQuery());
+
+        return Ok(ApiResponse<List<UnitDto>>.Ok(result));
+    }
+
+    [HttpGet("warehouses")]
+    [RequirePermission("inventory:read")]
+    public async Task<IActionResult> GetWarehouses()
+    {
+        var result = await _mediator.Send(new GetWarehousesQuery());
+
+        return Ok(ApiResponse<List<WarehouseDto>>.Ok(result));
+    }
+
+    [HttpGet("attribute-definitions")]
+    [RequirePermission("inventory:read")]
+    public async Task<IActionResult> GetAttributeDefinitions([FromQuery] Guid? categoryId)
+    {
+        var result = await _mediator.Send(new GetAttributeDefinitionsQuery(categoryId));
+
+        return Ok(ApiResponse<List<AttributeDefinitionDto>>.Ok(result));
+    }
+
+    [HttpPost("attribute-definitions")]
+    [RequirePermission("inventory:write")]
+    public async Task<IActionResult> CreateAttributeDefinition(CreateAttributeDefinitionRequest request)
+    {
+        var command = new CreateAttributeDefinitionCommand(
+            request.Key,
+            request.Label,
+            request.Type,
+            request.Options,
+            request.CategoryId,
+            request.IsFilterable,
+            request.SortOrder);
+
+        var id = await _mediator.Send(command);
+
+        return StatusCode(StatusCodes.Status201Created, ApiResponse<Guid>.Ok(id, "Atributo creado exitosamente"));
+    }
 }
