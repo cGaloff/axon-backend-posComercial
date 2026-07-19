@@ -4,6 +4,7 @@ using Axon.Domain.Exceptions;
 using Axon.Domain.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Axon.Application.Tenants.Commands;
 
@@ -12,15 +13,18 @@ public class RegisterTenantCommandHandler : IRequestHandler<RegisterTenantComman
     private readonly IMasterDbContext _appDbContext;
     private readonly ITenantSchemaInitializer _schemaInitializer;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly ILogger<RegisterTenantCommandHandler> _logger;
 
     public RegisterTenantCommandHandler(
         IMasterDbContext appDbContext,
         ITenantSchemaInitializer schemaInitializer,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        ILogger<RegisterTenantCommandHandler> logger)
     {
         _appDbContext = appDbContext;
         _schemaInitializer = schemaInitializer;
         _passwordHasher = passwordHasher;
+        _logger = logger;
     }
 
     public async Task<RegisterTenantResult> Handle(RegisterTenantCommand request, CancellationToken cancellationToken)
@@ -70,6 +74,20 @@ public class RegisterTenantCommandHandler : IRequestHandler<RegisterTenantComman
         }
         catch
         {
+            try
+            {
+                await _schemaInitializer.DropSchemaAsync(tenant.SchemaName);
+            }
+            catch (Exception cleanupEx)
+            {
+                // No se debe enmascarar el error original de aprovisionamiento por uno
+                // de limpieza; el schema queda huerfano para revisión/DROP manual.
+                _logger.LogError(
+                    cleanupEx,
+                    "No se pudo eliminar el schema huérfano '{SchemaName}' tras un registro de tenant fallido.",
+                    tenant.SchemaName);
+            }
+
             _appDbContext.Tenants.Remove(tenant);
             await _appDbContext.SaveChangesAsync(cancellationToken);
             throw;

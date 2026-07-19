@@ -30,6 +30,16 @@ public partial class TenantSchemaInitializer : ITenantSchemaInitializer
         await _dbContext.Database.ExecuteSqlRawAsync(seedSql.Replace("{SCHEMA_NAME}", schemaName));
     }
 
+    public async Task DropSchemaAsync(string schemaName)
+    {
+        if (!ValidSchemaNameRegex().IsMatch(schemaName))
+        {
+            throw new InvalidOperationException($"Invalid tenant schema name: '{schemaName}'.");
+        }
+
+        await _dbContext.Database.ExecuteSqlRawAsync($"DROP SCHEMA IF EXISTS \"{schemaName}\" CASCADE");
+    }
+
     private static async Task<string> ReadEmbeddedScriptAsync(string fileName)
     {
         var assembly = Assembly.GetExecutingAssembly();
