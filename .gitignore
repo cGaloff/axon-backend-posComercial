@@ -1,0 +1,31 @@
+# Build outputs
+**/bin/
+**/obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Logs
+*.log
+
+# Test output
+TestResults/
+
+# Recibos PDF generados por los scripts de prueba (scripts/test-*.ps1)
+/test-receipt*.pdf
+
+# OS files
+.DS_Store
+Thumbs.db

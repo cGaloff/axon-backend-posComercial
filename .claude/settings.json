@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kill %1)",
+      "Bash(kill %2)",
+      "Bash(tasklist //FI \"IMAGENAME eq Axon.API.exe\" //FO CSV //V)",
+      "Bash(taskkill //F //IM dotnet.exe //FI \"WINDOWTITLE eq *\")",
+      "Bash(taskkill //F //PID 28032)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker exec *)",
+      "Bash(taskkill //F //PID 1432)",
+      "Bash(tasklist //FI \"IMAGENAME eq dotnet.exe\")",
+      "PowerShell(powershell.exe -ExecutionPolicy Bypass -File \"c:\\\\Users\\\\Galoff\\\\Music\\\\axon-backend-posComercial\\\\scripts\\\\test-inventory-flow.ps1\")",
+      "PowerShell(powershell.exe -ExecutionPolicy Bypass -File \"c:\\\\Users\\\\Galoff\\\\Music\\\\axon-backend-posComercial\\\\scripts\\\\test-pos.ps1\")",
+      "PowerShell(powershell.exe -ExecutionPolicy Bypass -File \"c:\\\\Users\\\\Galoff\\\\Music\\\\axon-backend-posComercial\\\\scripts\\\\test-cash.ps1\")",
+      "PowerShell(powershell.exe -ExecutionPolicy Bypass -File \"c:\\\\Users\\\\Galoff\\\\Music\\\\axon-backend-posComercial\\\\scripts\\\\test-inventory-crud.ps1\")",
+      "PowerShell(powershell.exe -ExecutionPolicy Bypass -File \"c:\\\\Users\\\\Galoff\\\\Music\\\\axon-backend-posComercial\\\\scripts\\\\test-invoice.ps1\")",
+      "PowerShell(powershell.exe -ExecutionPolicy Bypass -File \"c:\\\\Users\\\\Galoff\\\\Music\\\\axon-backend-posComercial\\\\scripts\\\\test-suppliers.ps1\")",
+      "PowerShell(powershell.exe -ExecutionPolicy Bypass -File \"c:\\\\Users\\\\Galoff\\\\Music\\\\axon-backend-posComercial\\\\scripts\\\\test-users.ps1\")",
+      "Bash(tasklist //FI \"IMAGENAME eq dotnet.exe\" //V)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 16508)",
+      "Bash(taskkill //F //PID 2860)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
