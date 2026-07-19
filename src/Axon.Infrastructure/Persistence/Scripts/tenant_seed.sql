@@ -53,7 +53,7 @@ WHERE
         OR (p.module = 'suppliers' AND p.action = 'read')
     ))
     OR (r.name = 'Auditor' AND (
-        (p.module IN ('inventory', 'sales', 'cash_register') AND p.action = 'read')
+        (p.module IN ('inventory', 'sales', 'cash_register', 'suppliers') AND p.action = 'read')
         OR (p.module = 'reports' AND p.action IN ('read', 'export'))
         OR (p.module = 'configuration' AND p.action = 'read')
     ));

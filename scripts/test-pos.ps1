@@ -27,6 +27,8 @@ $script:UnitId = $null
 $script:CategoryId = $null
 $script:WarehouseId = $null
 $script:ProductId = $null
+$script:CashRegisterId = $null
+$script:SessionId = $null
 $script:SaleId = $null
 $script:SaleNumber = $null
 
@@ -35,6 +37,8 @@ $script:Results = [ordered]@{
     Setup            = $false
     Product          = $false
     InitialStock     = $false
+    CashRegister     = $false
+    CashSession      = $false
     Sale             = $false
     StockAfterSale   = $false
     History          = $false
@@ -126,6 +130,8 @@ function Show-Summary {
     Write-Host "$(Get-StatusIcon $script:Results.Setup) Setup (schema / unidad / categoria / bodega)"
     Write-Host "$(Get-StatusIcon $script:Results.Product) Producto creado"
     Write-Host "$(Get-StatusIcon $script:Results.InitialStock) Stock inicial: 20"
+    Write-Host "$(Get-StatusIcon $script:Results.CashRegister) Caja por defecto obtenida"
+    Write-Host "$(Get-StatusIcon $script:Results.CashSession) Sesion de caja abierta"
     Write-Host "$(Get-StatusIcon $script:Results.Sale) Venta procesada"
     Write-Host "$(Get-StatusIcon $script:Results.StockAfterSale) Stock post-venta: 18"
     Write-Host "$(Get-StatusIcon $script:Results.History) Historial de ventas"
@@ -329,6 +335,61 @@ function Set-InitialStock {
     }
 }
 
+# ---------- Paso 4.5: Abrir sesion de caja ----------
+# ProcessSaleCommandHandler exige una sesion de caja abierta (regla agregada
+# junto con el modulo de Caja); sin esto, la venta del paso 5 falla con 400.
+
+function Get-DefaultCashRegister {
+    Write-Host "`n--- OBTENER CAJA POR DEFECTO ---"
+
+    try {
+        $response = Invoke-RestMethod -Uri "$BaseUrl/api/cash-register" `
+            -Method Get `
+            -Headers (Get-AuthHeaders) `
+            -ErrorAction Stop
+
+        $register = $response.data | Where-Object { $_.isDefault -eq $true } | Select-Object -First 1
+
+        if (-not $register) {
+            throw "No se encontro ninguna caja con isDefault = true."
+        }
+
+        $script:CashRegisterId = $register.id
+        Write-Host "$([char]0x2705) Caja encontrada: $($register.name) - $script:CashRegisterId" -ForegroundColor Green
+        return $true
+    }
+    catch {
+        Write-ErrorDetails -ErrorRecord $_ -Step "Obtener caja por defecto"
+        return $false
+    }
+}
+
+function Open-CashSession {
+    Write-Host "`n--- ABRIR SESION DE CAJA ---"
+
+    $body = @{
+        cashRegisterId = $script:CashRegisterId
+        initialAmount  = 50000
+    } | ConvertTo-Json
+
+    try {
+        $response = Invoke-RestMethod -Uri "$BaseUrl/api/cash-register/sessions/open" `
+            -Method Post `
+            -ContentType "application/json" `
+            -Headers (Get-AuthHeaders) `
+            -Body $body `
+            -ErrorAction Stop
+
+        $script:SessionId = $response.data.sessionId
+        Write-Host "$([char]0x2705) Sesion de caja abierta: $script:SessionId" -ForegroundColor Green
+        return $true
+    }
+    catch {
+        Write-ErrorDetails -ErrorRecord $_ -Step "Abrir sesion de caja"
+        return $false
+    }
+}
+
 # ---------- Paso 5: Procesar venta en efectivo ----------
 
 function New-Sale {
@@ -343,8 +404,7 @@ function New-Sale {
             }
         )
         paymentMethod  = "Cash"
-        cashRegisterId = "00000000-0000-0000-0000-000000000001"
-        createdBy      = "00000000-0000-0000-0000-000000000001"
+        cashRegisterId = $script:CashRegisterId
         amountPaid     = 100000
         customerId     = $null
         customerName   = "Juan Pérez"
@@ -459,8 +519,7 @@ function New-SaleReturn {
     Write-Host "`n--- PASO 9: PROCESAR DEVOLUCION ---"
 
     $body = @{
-        reason     = "Cliente no quedó satisfecho"
-        returnedBy = "00000000-0000-0000-0000-000000000001"
+        reason = "Cliente no quedó satisfecho"
     } | ConvertTo-Json
 
     try {
@@ -541,6 +600,20 @@ if (-not $script:Results.Product) {
 
 $script:Results.InitialStock = Set-InitialStock
 if (-not $script:Results.InitialStock) {
+    Show-Summary
+    Read-Host "Presiona Enter para cerrar"
+    exit 1
+}
+
+$script:Results.CashRegister = Get-DefaultCashRegister
+if (-not $script:Results.CashRegister) {
+    Show-Summary
+    Read-Host "Presiona Enter para cerrar"
+    exit 1
+}
+
+$script:Results.CashSession = Open-CashSession
+if (-not $script:Results.CashSession) {
     Show-Summary
     Read-Host "Presiona Enter para cerrar"
     exit 1

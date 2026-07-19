@@ -28,12 +28,13 @@ $script:UnitId = $null
 $script:ProductId = $null
 
 $script:Results = [ordered]@{
-    Login       = $false
-    Category    = $false
-    Unit        = $false
-    Product     = $false
-    StockAdjust = $false
-    FinalCheck  = $false
+    Login          = $false
+    Category       = $false
+    Unit           = $false
+    AttributeDefs  = $false
+    Product        = $false
+    StockAdjust    = $false
+    FinalCheck     = $false
 }
 
 # ---------- Helpers ----------
@@ -127,6 +128,7 @@ function Show-Summary {
     Write-Host "$(Get-StatusIcon $script:Results.Login) Login"
     Write-Host "$(Get-StatusIcon $script:Results.Category) Categoria creada"
     Write-Host "$(Get-StatusIcon $script:Results.Unit) Unidad obtenida"
+    Write-Host "$(Get-StatusIcon $script:Results.AttributeDefs) Definiciones de atributo creadas (material, peso_gr)"
     Write-Host "$(Get-StatusIcon $script:Results.Product) Producto creado: MART-20OZ"
     Write-Host "$(Get-StatusIcon $script:Results.StockAdjust) Stock ajustado: 50"
     Write-Host "$(Get-StatusIcon $script:Results.FinalCheck) Verificacion final"
@@ -201,7 +203,7 @@ function New-Category {
             -Body $body `
             -ErrorAction Stop
 
-        $script:CategoryId = $response.data.id
+        $script:CategoryId = $response.data
         Write-Host "$([char]0x2705) Categoria creada: $script:CategoryId" -ForegroundColor Green
         return $true
     }
@@ -266,6 +268,48 @@ function Get-UnitId {
         Write-ErrorDetails -ErrorRecord $_ -Step "Obtener unidad"
         return $false
     }
+}
+
+# ---------- Paso 3.5: Crear definiciones de atributo (material, peso_gr) ----------
+# El producto del paso 4 manda estos dos atributos; sin definirlos antes, el
+# backend rechaza la creacion con 400 ("no esta definido para esta categoria").
+
+function New-AttributeDefinitions {
+    Write-Host "`n--- CREAR DEFINICIONES DE ATRIBUTO (material, peso_gr) ---"
+
+    $definitions = @(
+        @{ key = "material"; label = "Material" },
+        @{ key = "peso_gr"; label = "Peso (gr)" }
+    )
+
+    foreach ($def in $definitions) {
+        $body = @{
+            key          = $def.key
+            label        = $def.label
+            type         = "text"
+            options      = $null
+            categoryId   = $script:CategoryId
+            isFilterable = $true
+            sortOrder    = 0
+        } | ConvertTo-Json
+
+        try {
+            Invoke-RestMethod -Uri "$BaseUrl/api/inventory/attribute-definitions" `
+                -Method Post `
+                -ContentType "application/json" `
+                -Headers (Get-AuthHeaders) `
+                -Body $body `
+                -ErrorAction Stop | Out-Null
+
+            Write-Host "$([char]0x2705) Atributo '$($def.key)' definido" -ForegroundColor Green
+        }
+        catch {
+            Write-ErrorDetails -ErrorRecord $_ -Step "Crear definicion de atributo '$($def.key)'"
+            return $false
+        }
+    }
+
+    return $true
 }
 
 # ---------- Paso 4: Crear producto ----------
@@ -372,6 +416,9 @@ if (-not $script:Results.Category) { Show-Summary; exit 1 }
 
 $script:Results.Unit = Get-UnitId
 if (-not $script:Results.Unit) { Show-Summary; exit 1 }
+
+$script:Results.AttributeDefs = New-AttributeDefinitions
+if (-not $script:Results.AttributeDefs) { Show-Summary; exit 1 }
 
 $script:Results.Product = New-Product
 if (-not $script:Results.Product) { Show-Summary; exit 1 }

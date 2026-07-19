@@ -23,6 +23,9 @@ packages/
 # Test output
 TestResults/
 
+# Recibos PDF generados por los scripts de prueba (scripts/test-*.ps1)
+/test-receipt*.pdf
+
 # OS files
 .DS_Store
 Thumbs.db
