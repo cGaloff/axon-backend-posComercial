@@ -158,8 +158,8 @@ public class PdfService : IPdfService
             {
                 table.ColumnsDefinition(columns =>
                 {
-                    columns.RelativeColumn(1);
-                    columns.RelativeColumn(6);
+                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(5);
                     columns.RelativeColumn(3);
                 });
 
