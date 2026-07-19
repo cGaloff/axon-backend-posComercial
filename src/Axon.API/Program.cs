@@ -101,6 +101,12 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    // Sin esto, el validador de JWT renombra automaticamente claims estandar
+    // (sub -> ClaimTypes.NameIdentifier, email -> ClaimTypes.Email, role ->
+    // ClaimTypes.Role) antes de exponerlos en HttpContext.User, dejando
+    // ICurrentUserContext.UserId/Email/Role siempre vacios porque busca los
+    // nombres cortos originales ("sub", "email", "role").
+    options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
