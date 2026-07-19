@@ -3,6 +3,7 @@ using Axon.Domain.Entities;
 using Axon.Domain.Entities.CashRegister;
 using Axon.Domain.Entities.Inventory;
 using Axon.Domain.Entities.Sales;
+using Axon.Domain.Entities.Suppliers;
 using Axon.Domain.Interfaces;
 using Axon.Infrastructure.Persistence.Configurations;
 using Axon.Infrastructure.Persistence.Interceptors;
@@ -55,6 +56,16 @@ public class TenantDbContext : DbContext, IApplicationDbContext
 
     public DbSet<TenantConfig> TenantConfigs => Set<TenantConfig>();
 
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+
+    public DbSet<PurchaseReceipt> PurchaseReceipts => Set<PurchaseReceipt>();
+
+    public DbSet<SupplierPayment> SupplierPayments => Set<SupplierPayment>();
+
+    public DbSet<ProductSupplier> ProductSuppliers => Set<ProductSupplier>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.AddInterceptors(new TenantSchemaInterceptor(_tenantContext));
@@ -80,5 +91,10 @@ public class TenantDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new CashSessionConfiguration());
         modelBuilder.ApplyConfiguration(new CashMovementConfiguration());
         modelBuilder.ApplyConfiguration(new TenantConfigConfiguration());
+        modelBuilder.ApplyConfiguration(new SupplierConfiguration());
+        modelBuilder.ApplyConfiguration(new PurchaseOrderConfiguration());
+        modelBuilder.ApplyConfiguration(new PurchaseReceiptConfiguration());
+        modelBuilder.ApplyConfiguration(new SupplierPaymentConfiguration());
+        modelBuilder.ApplyConfiguration(new ProductSupplierConfiguration());
     }
 }

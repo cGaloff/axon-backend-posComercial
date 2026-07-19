@@ -95,6 +95,16 @@ public class Product
         }
     }
 
+    public void UpdateAverageCost(decimal newAverageCost)
+    {
+        if (newAverageCost < 0)
+        {
+            throw new DomainException("El costo promedio no puede ser negativo.");
+        }
+
+        Cost = newAverageCost;
+    }
+
     public void AdjustStock(int quantity)
     {
         var newStock = Stock + quantity;

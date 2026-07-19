@@ -209,3 +209,88 @@ CREATE TABLE {SCHEMA_NAME}.tenant_config (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE {SCHEMA_NAME}.suppliers (
+    id UUID PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    nit VARCHAR(20),
+    contact_name VARCHAR(200),
+    phone VARCHAR(50),
+    email VARCHAR(200),
+    address VARCHAR(500),
+    city VARCHAR(100),
+    payment_term_days INT NOT NULL DEFAULT 30,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE {SCHEMA_NAME}.purchase_orders (
+    id UUID PRIMARY KEY,
+    supplier_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.suppliers(id),
+    status VARCHAR(50) NOT NULL DEFAULT 'Pending',
+    notes TEXT,
+    order_date TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expected_date TIMESTAMPTZ,
+    created_by UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_purchase_orders_supplier_status ON {SCHEMA_NAME}.purchase_orders (supplier_id, status);
+
+CREATE INDEX idx_purchase_orders_created_by ON {SCHEMA_NAME}.purchase_orders (created_by);
+
+CREATE TABLE {SCHEMA_NAME}.purchase_order_items (
+    id UUID PRIMARY KEY,
+    purchase_order_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.purchase_orders(id),
+    product_id UUID NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    product_sku VARCHAR(100) NOT NULL,
+    quantity_ordered INT NOT NULL,
+    quantity_received INT NOT NULL DEFAULT 0,
+    unit_cost NUMERIC(12, 2) NOT NULL,
+    subtotal NUMERIC(12, 2) NOT NULL
+);
+
+CREATE TABLE {SCHEMA_NAME}.purchase_receipts (
+    id UUID PRIMARY KEY,
+    purchase_order_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.purchase_orders(id),
+    received_by UUID NOT NULL,
+    received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    notes TEXT,
+    total_received NUMERIC(12, 2) NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_purchase_receipts_order_received ON {SCHEMA_NAME}.purchase_receipts (purchase_order_id, received_at);
+
+CREATE TABLE {SCHEMA_NAME}.purchase_receipt_items (
+    id UUID PRIMARY KEY,
+    purchase_receipt_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.purchase_receipts(id),
+    purchase_order_item_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.purchase_order_items(id),
+    product_id UUID NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    quantity_received INT NOT NULL,
+    unit_cost NUMERIC(12, 2) NOT NULL,
+    subtotal NUMERIC(12, 2) NOT NULL
+);
+
+CREATE TABLE {SCHEMA_NAME}.supplier_payments (
+    id UUID PRIMARY KEY,
+    supplier_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.suppliers(id),
+    amount NUMERIC(12, 2) NOT NULL,
+    paid_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    payment_method VARCHAR(50) NOT NULL,
+    reference VARCHAR(200),
+    notes TEXT,
+    created_by UUID NOT NULL
+);
+
+CREATE INDEX idx_supplier_payments_supplier_paid ON {SCHEMA_NAME}.supplier_payments (supplier_id, paid_at);
+
+CREATE TABLE {SCHEMA_NAME}.product_suppliers (
+    product_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.products(id),
+    supplier_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.suppliers(id),
+    last_purchase_price NUMERIC(12, 2) NOT NULL,
+    is_preferred BOOLEAN NOT NULL DEFAULT false,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (product_id, supplier_id)
+);
