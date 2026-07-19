@@ -51,6 +51,22 @@ public class User
         IsActive = false;
     }
 
+    public void Reactivate()
+    {
+        IsActive = true;
+    }
+
+    public void Update(string fullName, Guid roleId)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            throw new DomainException("Full name is required.");
+        }
+
+        FullName = fullName;
+        RoleId = roleId;
+    }
+
     public void ChangePassword(string newHash)
     {
         PasswordHash = newHash;
