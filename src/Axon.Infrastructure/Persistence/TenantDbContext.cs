@@ -66,6 +66,8 @@ public class TenantDbContext : DbContext, IApplicationDbContext
 
     public DbSet<ProductSupplier> ProductSuppliers => Set<ProductSupplier>();
 
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.AddInterceptors(new TenantSchemaInterceptor(_tenantContext));
@@ -96,5 +98,6 @@ public class TenantDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new PurchaseReceiptConfiguration());
         modelBuilder.ApplyConfiguration(new SupplierPaymentConfiguration());
         modelBuilder.ApplyConfiguration(new ProductSupplierConfiguration());
+        modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
     }
 }
