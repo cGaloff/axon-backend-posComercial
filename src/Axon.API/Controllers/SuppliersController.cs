@@ -73,6 +73,15 @@ public class SuppliersController : ControllerBase
         return Ok(ApiResponse<PagedResult<PurchaseOrderDto>>.Ok(result));
     }
 
+    [HttpGet("purchase-orders/{id:guid}")]
+    [RequirePermission("suppliers:read")]
+    public async Task<IActionResult> GetPurchaseOrderById(Guid id)
+    {
+        var result = await _mediator.Send(new GetPurchaseOrderByIdQuery(id));
+
+        return Ok(ApiResponse<PurchaseOrderDetailsDto>.Ok(result));
+    }
+
     [HttpPost("purchase-orders")]
     [RequirePermission("suppliers:write")]
     public async Task<IActionResult> CreatePurchaseOrder(CreatePurchaseOrderRequest request)
