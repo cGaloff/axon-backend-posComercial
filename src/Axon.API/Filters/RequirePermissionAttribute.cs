@@ -8,11 +8,14 @@ namespace Axon.API.Filters;
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class)]
 public class RequirePermissionAttribute : Attribute, IAuthorizationFilter
 {
-    private readonly string _permission;
+    private readonly string[] _permissions;
 
-    public RequirePermissionAttribute(string permission)
+    // params: acepta uno o varios permisos. Con varios, basta con tener CUALQUIERA
+    // de ellos (OR) — p. ej. un reporte accesible tanto con "reports:read" como
+    // con el permiso específico del módulo que ya lo cubre ("sales:read").
+    public RequirePermissionAttribute(params string[] permissions)
     {
-        _permission = permission;
+        _permissions = permissions;
     }
 
     public void OnAuthorization(AuthorizationFilterContext context)
@@ -25,9 +28,9 @@ public class RequirePermissionAttribute : Attribute, IAuthorizationFilter
 
         var currentUser = context.HttpContext.RequestServices.GetRequiredService<ICurrentUserContext>();
 
-        if (!currentUser.HasPermission(_permission))
+        if (!_permissions.Any(currentUser.HasPermission))
         {
-            context.Result = new ObjectResult(ApiResponse<object>.Fail($"No tienes permiso para: {_permission}"))
+            context.Result = new ObjectResult(ApiResponse<object>.Fail($"No tienes permiso para: {string.Join(" o ", _permissions)}"))
             {
                 StatusCode = StatusCodes.Status403Forbidden
             };

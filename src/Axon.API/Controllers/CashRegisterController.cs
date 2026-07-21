@@ -3,6 +3,8 @@ using Axon.API.DTOs.CashRegister;
 using Axon.API.Filters;
 using Axon.Application.CashRegister.Commands;
 using Axon.Application.CashRegister.Queries;
+using Axon.Application.Common.Models;
+using Axon.Domain.Entities.CashRegister;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,6 +30,23 @@ public class CashRegisterController : ControllerBase
         var result = await _mediator.Send(new GetCashRegistersQuery());
 
         return Ok(ApiResponse<List<CashRegisterDto>>.Ok(result));
+    }
+
+    [HttpGet("sessions")]
+    [RequirePermission("cash_register:read", "reports:read")]
+    public async Task<IActionResult> GetSessionsHistory(
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] Guid? cashRegisterId,
+        [FromQuery] CashSessionStatus? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = new GetCashSessionsHistoryQuery(fromDate, toDate, cashRegisterId, status, page, pageSize);
+
+        var result = await _mediator.Send(query);
+
+        return Ok(ApiResponse<PagedResult<CashSessionSummaryDto>>.Ok(result));
     }
 
     [HttpPost("sessions/open")]
