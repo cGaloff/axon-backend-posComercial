@@ -30,4 +30,5 @@ public interface IApplicationDbContext
     DbSet<PurchaseReceipt> PurchaseReceipts { get; }
     DbSet<SupplierPayment> SupplierPayments { get; }
     DbSet<ProductSupplier> ProductSuppliers { get; }
+    DbSet<RefreshToken> RefreshTokens { get; }
 }

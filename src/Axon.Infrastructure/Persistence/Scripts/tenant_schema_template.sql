@@ -294,3 +294,14 @@ CREATE TABLE {SCHEMA_NAME}.product_suppliers (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (product_id, supplier_id)
 );
+
+CREATE TABLE {SCHEMA_NAME}.refresh_tokens (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_refresh_tokens_user ON {SCHEMA_NAME}.refresh_tokens (user_id);

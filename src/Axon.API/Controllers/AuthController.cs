@@ -27,4 +27,22 @@ public class AuthController : ControllerBase
 
         return Ok(ApiResponse<LoginResult>.Ok(result, "Login exitoso"));
     }
+
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Refresh(RefreshTokenRequest request)
+    {
+        var result = await _mediator.Send(new RefreshTokenCommand(request.RefreshToken));
+
+        return Ok(ApiResponse<LoginResult>.Ok(result, "Token renovado"));
+    }
+
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Logout(RefreshTokenRequest request)
+    {
+        await _mediator.Send(new LogoutCommand(request.RefreshToken));
+
+        return Ok(ApiResponse<string>.Ok("ok", "Sesión cerrada"));
+    }
 }
