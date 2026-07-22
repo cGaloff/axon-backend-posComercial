@@ -17,15 +17,20 @@ public class GetCashFlowReportQueryHandler : IRequestHandler<GetCashFlowReportQu
 
     public async Task<CashFlowReportDto> Handle(GetCashFlowReportQuery request, CancellationToken cancellationToken)
     {
+        // Npgsql exige Kind=Utc para comparar contra columnas timestamptz; el binder
+        // de ASP.NET Core entrega las fechas del query string con Kind=Unspecified.
+        var fromDate = DateTime.SpecifyKind(request.FromDate, DateTimeKind.Utc);
+        var toDate = DateTime.SpecifyKind(request.ToDate, DateTimeKind.Utc);
+
         var movements = await _dbContext.CashMovements
-            .Where(m => m.CreatedAt >= request.FromDate && m.CreatedAt <= request.ToDate)
+            .Where(m => m.CreatedAt >= fromDate && m.CreatedAt <= toDate)
             .ToListAsync(cancellationToken);
 
         // Los pagos a proveedor no tocan la caja física (ver ProcessSaleCommandHandler/
         // RegisterSupplierPaymentCommandHandler), así que no viven en cash_movements;
         // se agregan aquí como egreso de negocio, tal como sugiere el requerimiento.
         var supplierPayments = await _dbContext.SupplierPayments
-            .Where(p => p.PaidAt >= request.FromDate && p.PaidAt <= request.ToDate)
+            .Where(p => p.PaidAt >= fromDate && p.PaidAt <= toDate)
             .ToListAsync(cancellationToken);
 
         var points = new List<(DateTime Date, decimal Income, decimal Expense)>();

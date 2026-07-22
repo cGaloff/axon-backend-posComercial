@@ -16,10 +16,15 @@ public class GetSalesSummaryReportQueryHandler : IRequestHandler<GetSalesSummary
 
     public async Task<SalesSummaryReportDto> Handle(GetSalesSummaryReportQuery request, CancellationToken cancellationToken)
     {
+        // Npgsql exige Kind=Utc para comparar contra columnas timestamptz; el binder
+        // de ASP.NET Core entrega las fechas del query string con Kind=Unspecified.
+        var fromDate = DateTime.SpecifyKind(request.FromDate, DateTimeKind.Utc);
+        var toDate = DateTime.SpecifyKind(request.ToDate, DateTimeKind.Utc);
+
         // Solo ventas completadas cuentan como ingreso real: las anuladas/devueltas
         // no representan dinero efectivamente ganado en el período.
         var sales = await _dbContext.Sales
-            .Where(s => s.CreatedAt >= request.FromDate && s.CreatedAt <= request.ToDate && s.Status == SaleStatus.Completed)
+            .Where(s => s.CreatedAt >= fromDate && s.CreatedAt <= toDate && s.Status == SaleStatus.Completed)
             .ToListAsync(cancellationToken);
 
         var totalTransactions = sales.Count;
