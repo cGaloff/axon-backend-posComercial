@@ -13,6 +13,7 @@ using Axon.Infrastructure.Services;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -127,7 +128,41 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(applicationA
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 builder.Services.AddValidatorsFromAssembly(applicationAssembly);
 
+// CORS: en prod se define Cors:AllowedOrigins (CSV) para restringir a los dominios
+// del frontend. Si no hay orígenes configurados (dev/prueba), se abre a cualquiera.
+// AllowAnyOrigin NO es compatible con AllowCredentials, pero la API usa JWT en el
+// header Authorization (no cookies), así que no hace falta.
+var corsOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        if (corsOrigins.Length > 0)
+        {
+            policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod();
+        }
+        else
+        {
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        }
+    });
+});
+
 var app = builder.Build();
+
+// Detrás de Nginx (u otro proxy) que termina TLS: respeta X-Forwarded-Proto/For
+// para que el scheme/IP real lleguen a la app (necesario para HttpsRedirection y
+// para no romper el flujo HTTPS). Se limpian las redes/proxies conocidos porque el
+// proxy llega por la red interna de Docker, no desde loopback.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -137,7 +172,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Aplica las migraciones pendientes de la base master al arrancar.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
 app.UseHttpsRedirection();
+
+// CORS debe ir ANTES del TenantResolutionMiddleware: el preflight OPTIONS del
+// navegador no incluye el header X-Tenant-Slug, así que si el middleware de tenant
+// corre primero lo rechazaría con 400 y rompería CORS. UseCors responde el preflight
+// aquí y lo corta antes de llegar a la resolución de tenant.
+app.UseCors();
 
 app.UseMiddleware<TenantResolutionMiddleware>();
 
@@ -149,10 +197,12 @@ app.MapControllers();
 app.Run();
 
 // Orden del pipeline:
-// 1. ExceptionHandlingMiddleware  -> captura cualquier excepción de las etapas siguientes
-// 2. Swagger / SwaggerUI          -> solo en Development
-// 3. HttpsRedirection
-// 4. TenantResolutionMiddleware   -> resuelve el tenant antes de auth/negocio
-// 5. Authentication
-// 6. Authorization
-// 7. MapControllers
+// 1. ForwardedHeaders             -> scheme/IP real desde el reverse proxy
+// 2. ExceptionHandlingMiddleware  -> captura cualquier excepción de las etapas siguientes
+// 3. Swagger / SwaggerUI          -> solo en Development
+// 4. HttpsRedirection
+// 5. CORS                         -> antes del tenant para no romper el preflight OPTIONS
+// 6. TenantResolutionMiddleware   -> resuelve el tenant antes de auth/negocio
+// 7. Authentication
+// 8. Authorization
+// 9. MapControllers
