@@ -50,6 +50,23 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddMemoryCache();
 
+const string FrontendCorsPolicy = "FrontendCorsPolicy";
+
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? throw new InvalidOperationException("La sección 'Cors:AllowedOrigins' no está configurada.");
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+    {
+        // Sin AllowCredentials: el frontend manda el JWT en el header Authorization,
+        // no en cookies, así que no hace falta habilitar el modo de credenciales de CORS.
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var masterConnectionString = builder.Configuration.GetConnectionString("MasterDb")
     ?? throw new InvalidOperationException("La cadena de conexión 'MasterDb' no está configurada.");
 
@@ -139,6 +156,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Antes de TenantResolutionMiddleware a propósito: las peticiones de preflight
+// (OPTIONS) no llevan el header X-Tenant-Slug, así que si CORS corriera después
+// nunca llegarían a responderse — quedarían cortadas con el 400 de tenant faltante.
+app.UseCors(FrontendCorsPolicy);
+
 app.UseMiddleware<TenantResolutionMiddleware>();
 
 app.UseAuthentication();
@@ -152,7 +174,9 @@ app.Run();
 // 1. ExceptionHandlingMiddleware  -> captura cualquier excepción de las etapas siguientes
 // 2. Swagger / SwaggerUI          -> solo en Development
 // 3. HttpsRedirection
-// 4. TenantResolutionMiddleware   -> resuelve el tenant antes de auth/negocio
-// 5. Authentication
-// 6. Authorization
-// 7. MapControllers
+// 4. Cors                        -> antes de TenantResolutionMiddleware: el preflight
+//                                    (OPTIONS) no manda X-Tenant-Slug
+// 5. TenantResolutionMiddleware   -> resuelve el tenant antes de auth/negocio
+// 6. Authentication
+// 7. Authorization
+// 8. MapControllers
