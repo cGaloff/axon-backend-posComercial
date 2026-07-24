@@ -9,6 +9,9 @@ public class CreatePurchaseOrderCommandValidator : AbstractValidator<CreatePurch
         RuleFor(x => x.SupplierId)
             .NotEmpty();
 
+        RuleFor(x => x.SupplierInvoiceNumber)
+            .MaximumLength(100);
+
         RuleFor(x => x.Items)
             .NotEmpty()
             .WithMessage("La orden debe tener al menos un ítem");

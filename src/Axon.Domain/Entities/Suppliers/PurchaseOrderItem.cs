@@ -4,6 +4,8 @@ namespace Axon.Domain.Entities.Suppliers;
 
 public class PurchaseOrderItem
 {
+    private readonly List<PurchaseOrderItemTax> _taxes = new();
+
     public Guid Id { get; private set; }
     public Guid PurchaseOrderId { get; private set; }
     public Guid ProductId { get; private set; }
@@ -13,6 +15,15 @@ public class PurchaseOrderItem
     public int QuantityReceived { get; private set; }
     public decimal UnitCost { get; private set; }
     public decimal Subtotal { get; private set; }
+    public decimal TaxAmount { get; private set; }
+
+    // Lo que realmente se le debe al proveedor por esta línea (base + impuestos).
+    // A diferencia de SaleItem (precio ya incluye impuesto, se "desquita" la
+    // base), en compras el costo se cotiza SIN impuesto y el impuesto se suma
+    // encima — convención opuesta pero igual de válida para cada lado del negocio.
+    public decimal Total => Subtotal + TaxAmount;
+
+    public IReadOnlyList<PurchaseOrderItemTax> Taxes => _taxes;
 
     public int PendingQuantity => QuantityOrdered - QuantityReceived;
     public bool IsFullyReceived => QuantityReceived >= QuantityOrdered;
@@ -27,7 +38,8 @@ public class PurchaseOrderItem
         string productName,
         string productSku,
         int quantityOrdered,
-        decimal unitCost)
+        decimal unitCost,
+        IEnumerable<(Guid TaxTypeId, string TaxTypeName, decimal Percentage)>? appliedTaxes = null)
     {
         if (quantityOrdered <= 0)
         {
@@ -39,9 +51,18 @@ public class PurchaseOrderItem
             throw new DomainException("El costo unitario debe ser mayor a cero.");
         }
 
-        return new PurchaseOrderItem
+        var subtotal = quantityOrdered * unitCost;
+        var taxes = (appliedTaxes ?? Enumerable.Empty<(Guid, string, decimal)>()).ToList();
+
+        var id = Guid.NewGuid();
+
+        var taxSnapshots = taxes
+            .Select(t => PurchaseOrderItemTax.Create(id, t.TaxTypeId, t.TaxTypeName, t.Percentage, subtotal * t.Percentage / 100))
+            .ToList();
+
+        var item = new PurchaseOrderItem
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             PurchaseOrderId = purchaseOrderId,
             ProductId = productId,
             ProductName = productName,
@@ -49,8 +70,13 @@ public class PurchaseOrderItem
             QuantityOrdered = quantityOrdered,
             QuantityReceived = 0,
             UnitCost = unitCost,
-            Subtotal = quantityOrdered * unitCost
+            Subtotal = subtotal,
+            TaxAmount = taxSnapshots.Sum(t => t.Amount)
         };
+
+        item._taxes.AddRange(taxSnapshots);
+
+        return item;
     }
 
     public void RegisterReception(int quantity)

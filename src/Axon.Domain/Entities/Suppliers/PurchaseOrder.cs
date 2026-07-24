@@ -20,12 +20,21 @@ public class PurchaseOrder
     public string? Notes { get; private set; }
     public DateTime OrderDate { get; private set; }
     public DateTime? ExpectedDate { get; private set; }
+
+    // Factura del proveedor para esta compra (referencia externa) y su tipo de
+    // documento snapshoteado en este instante — no cambia si el proveedor edita
+    // su tipo de documento después (mismo principio de auditoría que Invoice).
+    public string? SupplierInvoiceNumber { get; private set; }
+    public DateTime? SupplierInvoiceDate { get; private set; }
+    public SupplierDocumentType SupplierDocumentTypeAtPurchase { get; private set; }
+
     public Guid CreatedBy { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
     public IReadOnlyList<PurchaseOrderItem> Items => _items;
 
-    public decimal TotalOrdered => Items.Sum(i => i.Subtotal);
+    // Lo que realmente se le debe al proveedor (base + impuestos de cada línea).
+    public decimal TotalOrdered => Items.Sum(i => i.Total);
 
     private PurchaseOrder()
     {
@@ -34,6 +43,9 @@ public class PurchaseOrder
     public static PurchaseOrder Create(
         Guid supplierId,
         Guid createdBy,
+        SupplierDocumentType supplierDocumentTypeAtPurchase,
+        string? supplierInvoiceNumber = null,
+        DateTime? supplierInvoiceDate = null,
         DateTime? expectedDate = null,
         string? notes = null)
     {
@@ -45,6 +57,9 @@ public class PurchaseOrder
             Notes = notes,
             OrderDate = DateTime.UtcNow,
             ExpectedDate = expectedDate,
+            SupplierInvoiceNumber = supplierInvoiceNumber,
+            SupplierInvoiceDate = supplierInvoiceDate,
+            SupplierDocumentTypeAtPurchase = supplierDocumentTypeAtPurchase,
             CreatedBy = createdBy,
             CreatedAt = DateTime.UtcNow
         };
@@ -54,7 +69,7 @@ public class PurchaseOrder
     {
         if (Status != PurchaseOrderStatus.Pending)
         {
-            throw new DomainException("Solo se pueden agregar ítems a órdenes pendientes");
+            throw new DomainException("Solo se pueden agregar ítems a compras pendientes");
         }
 
         _items.Add(item);
@@ -64,7 +79,7 @@ public class PurchaseOrder
     {
         if (Status == PurchaseOrderStatus.Received)
         {
-            throw new DomainException("No se puede cancelar una orden ya recibida");
+            throw new DomainException("No se puede cancelar una compra ya recibida");
         }
 
         Status = PurchaseOrderStatus.Cancelled;

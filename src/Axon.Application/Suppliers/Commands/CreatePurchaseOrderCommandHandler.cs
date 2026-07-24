@@ -51,9 +51,17 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
             throw new DomainException($"El producto '{missingProductId}' no existe");
         }
 
+        // Catálogo completo de impuestos del tenant, para resolver el nombre que se
+        // snapshotea en cada línea de compra junto al porcentaje vigente del producto
+        // (mismo patrón que ProcessSaleCommandHandler para SaleItem).
+        var taxTypeNames = await _dbContext.TaxTypes.ToDictionaryAsync(t => t.Id, t => t.Name, cancellationToken);
+
         var order = PurchaseOrder.Create(
             request.SupplierId,
             _currentUserContext.UserId,
+            supplier.DocumentType,
+            request.SupplierInvoiceNumber,
+            request.SupplierInvoiceDate,
             request.ExpectedDate,
             request.Notes);
 
@@ -61,13 +69,18 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
         {
             var product = productsById[itemRequest.ProductId];
 
+            var appliedTaxes = product.Taxes
+                .Select(pt => (pt.TaxTypeId, taxTypeNames.GetValueOrDefault(pt.TaxTypeId, string.Empty), pt.Percentage))
+                .ToList();
+
             var orderItem = PurchaseOrderItem.Create(
                 order.Id,
                 product.Id,
                 product.Name,
                 product.Sku,
                 itemRequest.QuantityOrdered,
-                itemRequest.UnitCost);
+                itemRequest.UnitCost,
+                appliedTaxes);
 
             order.AddItem(orderItem);
         }

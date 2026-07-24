@@ -10,4 +10,6 @@ public record CreateProductRequest(
     Guid CategoryId,
     Guid UnitId,
     Dictionary<string, string>? Attributes,
-    decimal TaxPercentage = 0);
+    List<ProductTaxRequestDto>? Taxes = null);
+
+public record ProductTaxRequestDto(Guid TaxTypeId, decimal Percentage);

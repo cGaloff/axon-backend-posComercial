@@ -22,7 +22,7 @@ public class GetPurchaseOrderByIdQueryHandler : IRequestHandler<GetPurchaseOrder
 
         if (order is null)
         {
-            throw new DomainException("La orden de compra no existe");
+            throw new DomainException("La compra no existe");
         }
 
         var supplier = await _dbContext.Suppliers
@@ -37,7 +37,10 @@ public class GetPurchaseOrderByIdQueryHandler : IRequestHandler<GetPurchaseOrder
                 i.QuantityOrdered,
                 i.QuantityReceived,
                 i.UnitCost,
-                i.Subtotal))
+                i.Subtotal,
+                i.TaxAmount,
+                i.Total,
+                i.Taxes.Select(t => new PurchaseOrderItemTaxDto(t.TaxTypeId, t.TaxTypeName, t.Percentage, t.Amount)).ToList()))
             .ToList();
 
         return new PurchaseOrderDetailsDto(
@@ -48,6 +51,9 @@ public class GetPurchaseOrderByIdQueryHandler : IRequestHandler<GetPurchaseOrder
             order.Notes,
             order.OrderDate,
             order.ExpectedDate,
+            order.SupplierInvoiceNumber,
+            order.SupplierInvoiceDate,
+            order.SupplierDocumentTypeAtPurchase,
             order.TotalOrdered,
             items);
     }

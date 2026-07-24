@@ -1,3 +1,4 @@
+using Axon.Domain.Entities.Suppliers;
 using MediatR;
 
 namespace Axon.Application.Suppliers.Queries;
@@ -12,6 +13,9 @@ public record PurchaseOrderDetailsDto(
     string? Notes,
     DateTime OrderDate,
     DateTime? ExpectedDate,
+    string? SupplierInvoiceNumber,
+    DateTime? SupplierInvoiceDate,
+    SupplierDocumentType SupplierDocumentTypeAtPurchase,
     decimal TotalOrdered,
     List<PurchaseOrderItemDetailsDto> Items);
 
@@ -23,4 +27,9 @@ public record PurchaseOrderItemDetailsDto(
     int QuantityOrdered,
     int QuantityReceived,
     decimal UnitCost,
-    decimal Subtotal);
+    decimal Subtotal,
+    decimal TaxAmount,
+    decimal Total,
+    List<PurchaseOrderItemTaxDto> Taxes);
+
+public record PurchaseOrderItemTaxDto(Guid TaxTypeId, string TaxTypeName, decimal Percentage, decimal Amount);

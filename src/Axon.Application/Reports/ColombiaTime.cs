@@ -9,6 +9,17 @@ internal static class ColombiaTime
         return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, TimeZone);
     }
 
+    // Los filtros de rango de fecha de los reportes llegan como límites del día
+    // calendario en hora Colombia (p. ej. "24/07/2026 00:00" a "24/07/2026 23:59:59"),
+    // pero Sale.CreatedAt/CashMovement.CreatedAt se guardan en UTC. Sin esta conversión,
+    // una venta hecha de noche en Colombia (que ya cayó en el día UTC siguiente) queda
+    // fuera del rango y desaparece del reporte del día en que realmente ocurrió.
+    public static DateTime ToUtc(DateTime localDateTime)
+    {
+        var unspecified = DateTime.SpecifyKind(localDateTime, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(unspecified, TimeZone);
+    }
+
     private static TimeZoneInfo Resolve()
     {
         try

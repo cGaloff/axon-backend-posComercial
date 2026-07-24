@@ -39,6 +39,23 @@ public class GetInventorySummaryReportQueryHandler : IRequestHandler<GetInventor
             .Take(10)
             .ToList();
 
-        return new InventorySummaryReportDto(totalProductsInStock, totalInventoryValue, lowStockProductsCount, topSellingProducts);
+        // Sección de "acciones": alertas de stock bajo aún no atendidas (IsRead = false),
+        // generadas por ProcessSaleCommandHandler/AdjustStockCommandHandler pero que hasta
+        // ahora ningún reporte ni endpoint exponía.
+        var pendingStockAlerts = await (
+            from alert in _dbContext.StockAlerts
+            join product in _dbContext.Products on alert.ProductId equals product.Id
+            where !alert.IsRead
+            orderby alert.CreatedAt descending
+            select new PendingStockAlertDto(alert.ProductId, product.Name, alert.CurrentStock, alert.MinStock, alert.CreatedAt))
+            .Take(20)
+            .ToListAsync(cancellationToken);
+
+        return new InventorySummaryReportDto(
+            totalProductsInStock,
+            totalInventoryValue,
+            lowStockProductsCount,
+            topSellingProducts,
+            pendingStockAlerts);
     }
 }

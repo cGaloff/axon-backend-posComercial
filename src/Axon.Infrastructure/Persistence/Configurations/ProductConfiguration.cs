@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Axon.Domain.Entities.Inventory;
+using Axon.Domain.Entities.Taxes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -70,8 +71,29 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.IsActive)
             .HasDefaultValue(true);
 
-        builder.Property(p => p.TaxPercentage)
-            .HasColumnType("decimal(5,2)")
-            .HasDefaultValue(0m);
+        builder.Navigation(p => p.Taxes)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.OwnsMany(p => p.Taxes, taxes =>
+        {
+            taxes.ToTable("product_taxes");
+
+            taxes.WithOwner().HasForeignKey(t => t.ProductId);
+
+            taxes.HasKey(t => t.Id);
+
+            taxes.Property(t => t.Percentage)
+                .HasColumnType("decimal(9,4)");
+
+            // Configuración vigente del producto: a diferencia del snapshot de
+            // SaleItemTax, sí se valida con FK contra el catálogo tax_types.
+            taxes.HasOne<TaxType>()
+                .WithMany()
+                .HasForeignKey(t => t.TaxTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            taxes.HasIndex(t => new { t.ProductId, t.TaxTypeId })
+                .IsUnique();
+        });
     }
 }

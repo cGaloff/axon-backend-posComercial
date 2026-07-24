@@ -23,7 +23,10 @@
       "Bash(taskkill //F //PID 16508)",
       "Bash(taskkill //F //PID 2860)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(xargs grep -l \"CreatedAt\\\\|UpdatedAt\")",
+      "Bash(xargs grep -l \"RateLimit\")",
+      "PowerShell(Get-PSDrive -PSProvider FileSystem | Select-Object Name, @{N='UsedGB';E={[math]::Round\\($_.Used/1GB,2\\)}}, @{N='FreeGB';E={[math]::Round\\($_.Free/1GB,2\\)}})"
     ]
   }
 }

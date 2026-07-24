@@ -38,13 +38,16 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
             request.CategoryId,
             request.UnitId);
 
-        product.UpdateTaxPercentage(request.TaxPercentage);
-
         if (request.Attributes is { Count: > 0 })
         {
             var normalizedAttributes = await NormalizeAttributesAsync(request.Attributes, request.CategoryId, cancellationToken);
             product.SetAttributes(normalizedAttributes);
         }
+
+        // Taxes representa el estado completo deseado: una lista nula o vacía deja
+        // el producto sin ningún impuesto configurado, de forma explícita.
+        var normalizedTaxes = await NormalizeTaxesAsync(request.Taxes, cancellationToken);
+        product.SetTaxes(normalizedTaxes);
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
@@ -72,6 +75,33 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
             }
 
             normalized[key] = JsonSerializer.SerializeToElement(value);
+        }
+
+        return normalized;
+    }
+
+    private async Task<List<(Guid TaxTypeId, decimal Percentage)>> NormalizeTaxesAsync(
+        List<ProductTaxRequest>? taxes,
+        CancellationToken cancellationToken)
+    {
+        var normalized = new List<(Guid TaxTypeId, decimal Percentage)>();
+
+        if (taxes is null)
+        {
+            return normalized;
+        }
+
+        foreach (var tax in taxes)
+        {
+            var taxTypeExists = await _dbContext.TaxTypes.AnyAsync(
+                t => t.Id == tax.TaxTypeId && t.IsActive, cancellationToken);
+
+            if (!taxTypeExists)
+            {
+                throw new DomainException($"El tipo de impuesto '{tax.TaxTypeId}' no existe o está inactivo");
+            }
+
+            normalized.Add((tax.TaxTypeId, tax.Percentage));
         }
 
         return normalized;

@@ -9,4 +9,4 @@ public record UpdateProductRequest(
     Guid CategoryId,
     Guid UnitId,
     Dictionary<string, string>? Attributes,
-    decimal TaxPercentage = 0);
+    List<ProductTaxRequestDto>? Taxes = null);

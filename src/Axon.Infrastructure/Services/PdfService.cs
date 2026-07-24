@@ -38,7 +38,7 @@ public class PdfService : IPdfService
                     column.Item().Element(c => ComposeHeader(c, config, logoBytes));
                     column.Item().PaddingTop(1, Unit.Millimetre).Element(c => ComposeSaleData(c, sale));
                     column.Item().PaddingTop(1, Unit.Millimetre).Element(c => ComposeItemsTable(c, sale));
-                    column.Item().PaddingTop(1, Unit.Millimetre).Element(c => ComposeTotals(c, sale, config));
+                    column.Item().PaddingTop(1, Unit.Millimetre).Element(c => ComposeTotals(c, sale));
                     column.Item().PaddingTop(2, Unit.Millimetre).Element(c => ComposeQrCode(c, sale, config));
                     column.Item().PaddingTop(2, Unit.Millimetre).Element(c => ComposeFooter(c, config));
                 });
@@ -188,10 +188,10 @@ public class PdfService : IPdfService
                     table.Cell().Text(item.ProductName);
                     table.Cell().AlignRight().Text(item.Subtotal.ToString("N0"));
 
-                    if (item.TaxPercentage > 0)
+                    foreach (var tax in item.Taxes)
                     {
                         table.Cell();
-                        table.Cell().Text($"  IVA {item.TaxPercentage:0.##}%: {item.TaxAmount:N0}").FontSize(7);
+                        table.Cell().Text($"  {tax.TaxTypeName} {tax.Percentage:0.####}%: {tax.Amount:N0}").FontSize(7);
                         table.Cell();
                     }
 
@@ -208,32 +208,38 @@ public class PdfService : IPdfService
         });
     }
 
-    private static void ComposeTotals(IContainer container, Sale sale, TenantConfig config)
+    private static void ComposeTotals(IContainer container, Sale sale)
     {
         container.Column(column =>
         {
-            if (config.IsResponsableIva)
+            var hasAnyTax = sale.Items.Any(i => i.Taxes.Count > 0);
+
+            if (hasAnyTax)
             {
                 var subtotalBase = sale.Items.Sum(i => i.SubtotalBase);
 
                 column.Item().Row(row =>
                 {
-                    row.RelativeItem(1).Text("Subtotal (sin IVA):");
+                    row.RelativeItem(1).Text("Subtotal (base gravable):");
                     row.RelativeItem(1).AlignRight().Text(subtotalBase.ToString("N0"));
                 });
 
+                // Un mismo tipo de impuesto puede aparecer en varias líneas con el
+                // mismo porcentaje; se agrupa por (nombre, porcentaje) para mostrar
+                // un único renglón por impuesto en el total de la venta.
                 var taxGroups = sale.Items
-                    .Where(i => i.TaxPercentage > 0)
-                    .GroupBy(i => i.TaxPercentage)
-                    .OrderBy(g => g.Key);
+                    .SelectMany(i => i.Taxes)
+                    .GroupBy(t => new { t.TaxTypeName, t.Percentage })
+                    .OrderBy(g => g.Key.TaxTypeName)
+                    .ThenBy(g => g.Key.Percentage);
 
                 foreach (var group in taxGroups)
                 {
-                    var amount = group.Sum(i => i.TaxAmount);
+                    var amount = group.Sum(t => t.Amount);
 
                     column.Item().Row(row =>
                     {
-                        row.RelativeItem(1).Text($"IVA {group.Key:0.##}%:");
+                        row.RelativeItem(1).Text($"{group.Key.TaxTypeName} {group.Key.Percentage:0.####}%:");
                         row.RelativeItem(1).AlignRight().Text(amount.ToString("N0"));
                     });
                 }
@@ -247,35 +253,41 @@ public class PdfService : IPdfService
                 row.RelativeItem(1).AlignRight().Text(sale.Total.ToString("N0")).FontSize(10).Bold();
             });
 
-            switch (sale.PaymentMethod)
+            // Pagos divididos: se muestra una línea por cada forma de pago; el
+            // efectivo además muestra lo entregado y el vuelto de esa línea puntual.
+            foreach (var payment in sale.Payments)
             {
-                case PaymentMethod.Cash:
+                column.Item().Row(row =>
+                {
+                    row.RelativeItem(1).Text($"{DescribePaymentMethod(payment.Method)}:");
+                    row.RelativeItem(1).AlignRight().Text(payment.Amount.ToString("N0"));
+                });
+
+                if (payment.Method == PaymentMethod.Cash)
+                {
                     column.Item().Row(row =>
                     {
-                        row.RelativeItem(1).Text("Efectivo:");
-                        row.RelativeItem(1).AlignRight().Text(sale.AmountPaid.ToString("N0"));
+                        row.RelativeItem(1).Text("  Recibido:").FontSize(7);
+                        row.RelativeItem(1).AlignRight().Text((payment.AmountTendered ?? payment.Amount).ToString("N0")).FontSize(7);
                     });
                     column.Item().Row(row =>
                     {
-                        row.RelativeItem(1).Text("Cambio:");
-                        row.RelativeItem(1).AlignRight().Text(sale.Change.ToString("N0"));
+                        row.RelativeItem(1).Text("  Cambio:").FontSize(7);
+                        row.RelativeItem(1).AlignRight().Text((payment.Change ?? 0m).ToString("N0")).FontSize(7);
                     });
-                    break;
-
-                case PaymentMethod.Card:
-                    column.Item().AlignCenter().Text("Pago con tarjeta");
-                    break;
-
-                case PaymentMethod.Transfer:
-                    column.Item().AlignCenter().Text("Pago por transferencia");
-                    break;
-
-                case PaymentMethod.Credit:
-                    column.Item().AlignCenter().Text("Crédito / Fiado");
-                    break;
+                }
             }
         });
     }
+
+    private static string DescribePaymentMethod(PaymentMethod method) => method switch
+    {
+        PaymentMethod.Cash => "Efectivo",
+        PaymentMethod.Card => "Tarjeta",
+        PaymentMethod.Transfer => "Transferencia",
+        PaymentMethod.Credit => "Crédito / Fiado",
+        _ => method.ToString()
+    };
 
     private static void ComposeQrCode(IContainer container, Sale sale, TenantConfig config)
     {

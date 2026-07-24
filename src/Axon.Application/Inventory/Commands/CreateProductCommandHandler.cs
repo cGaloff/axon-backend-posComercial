@@ -35,8 +35,7 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             request.Cost,
             request.MinStock,
             request.CategoryId,
-            request.UnitId,
-            request.TaxPercentage);
+            request.UnitId);
 
         // Product.Create() no acepta description (no está en su firma); UpdateDetails()
         // es el único método que la fija, así que se llama inmediatamente después con
@@ -55,6 +54,12 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             var normalizedAttributes = await NormalizeAttributesAsync(request.Attributes, request.CategoryId, cancellationToken);
             product.SetAttributes(normalizedAttributes);
         }
+
+        // Taxes representa el estado completo deseado (a diferencia de Attributes,
+        // que solo se toca si viene con datos): una lista nula o vacía deja el
+        // producto sin ningún impuesto configurado, de forma explícita.
+        var normalizedTaxes = await NormalizeTaxesAsync(request.Taxes, cancellationToken);
+        product.SetTaxes(normalizedTaxes);
 
         _dbContext.Products.Add(product);
         await _unitOfWork.CommitAsync(cancellationToken);
@@ -83,6 +88,33 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             }
 
             normalized[key] = JsonSerializer.SerializeToElement(value);
+        }
+
+        return normalized;
+    }
+
+    private async Task<List<(Guid TaxTypeId, decimal Percentage)>> NormalizeTaxesAsync(
+        List<ProductTaxRequest>? taxes,
+        CancellationToken cancellationToken)
+    {
+        var normalized = new List<(Guid TaxTypeId, decimal Percentage)>();
+
+        if (taxes is null)
+        {
+            return normalized;
+        }
+
+        foreach (var tax in taxes)
+        {
+            var taxTypeExists = await _dbContext.TaxTypes.AnyAsync(
+                t => t.Id == tax.TaxTypeId && t.IsActive, cancellationToken);
+
+            if (!taxTypeExists)
+            {
+                throw new DomainException($"El tipo de impuesto '{tax.TaxTypeId}' no existe o está inactivo");
+            }
+
+            normalized.Add((tax.TaxTypeId, tax.Percentage));
         }
 
         return normalized;

@@ -11,4 +11,4 @@ public record SaleTaxSummaryDto(
     decimal Discount,
     List<TaxBreakdownDto> TaxBreakdown);
 
-public record TaxBreakdownDto(decimal Rate, decimal Base, decimal Amount);
+public record TaxBreakdownDto(Guid TaxTypeId, string TaxTypeName, decimal Rate, decimal Base, decimal Amount);

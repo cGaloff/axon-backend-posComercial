@@ -2,6 +2,7 @@ using Axon.API.Common;
 using Axon.API.DTOs.Sales;
 using Axon.API.Filters;
 using Axon.Application.Common.Models;
+using Axon.Application.Invoicing.Queries;
 using Axon.Application.Sales.Commands;
 using Axon.Application.Sales.DTOs;
 using Axon.Application.Sales.Queries;
@@ -31,9 +32,8 @@ public class SalesController : ControllerBase
     {
         var command = new ProcessSaleCommand(
             request.Items.Select(i => new SaleItemRequest(i.ProductId, i.Quantity, i.Discount)).ToList(),
-            request.PaymentMethod,
+            request.Payments.Select(p => new SalePaymentRequest(p.Method, p.Amount, p.AmountTendered)).ToList(),
             request.CashRegisterId,
-            request.AmountPaid,
             request.CustomerId,
             request.CustomerName,
             request.CustomerEmail,
@@ -77,6 +77,15 @@ public class SalesController : ControllerBase
         var pdf = await _mediator.Send(new GetSaleReceiptQuery(id));
 
         return File(pdf, "application/pdf", $"{id}.pdf");
+    }
+
+    [HttpGet("{id:guid}/invoice")]
+    [RequirePermission("sales:read")]
+    public async Task<IActionResult> GetInvoicePdf(Guid id)
+    {
+        var pdf = await _mediator.Send(new GetInvoicePdfBySaleIdQuery(id));
+
+        return File(pdf, "application/pdf", $"factura-{id}.pdf");
     }
 
     [HttpGet("{id:guid}/tax-summary")]

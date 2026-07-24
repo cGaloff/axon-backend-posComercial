@@ -4,6 +4,8 @@ public class CreatePurchaseOrderRequest
 {
     public Guid SupplierId { get; set; }
     public List<PurchaseOrderItemDto> Items { get; set; } = new();
+    public string? SupplierInvoiceNumber { get; set; }
+    public DateTime? SupplierInvoiceDate { get; set; }
     public DateTime? ExpectedDate { get; set; }
     public string? Notes { get; set; }
 }

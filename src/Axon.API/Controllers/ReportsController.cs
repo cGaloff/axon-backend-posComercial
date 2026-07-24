@@ -48,4 +48,13 @@ public class ReportsController : ControllerBase
 
         return Ok(ApiResponse<InventorySummaryReportDto>.Ok(result));
     }
+
+    [HttpGet("sales-by-employee")]
+    [RequirePermission("reports:read", "sales:read")]
+    public async Task<IActionResult> GetSalesByEmployee([FromQuery] DateTime fromDate, [FromQuery] DateTime toDate)
+    {
+        var result = await _mediator.Send(new GetSalesByEmployeeReportQuery(fromDate, toDate));
+
+        return Ok(ApiResponse<SalesByEmployeeReportDto>.Ok(result));
+    }
 }
