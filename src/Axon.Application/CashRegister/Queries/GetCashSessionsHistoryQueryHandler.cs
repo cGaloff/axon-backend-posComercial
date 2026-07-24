@@ -19,14 +19,18 @@ public class GetCashSessionsHistoryQueryHandler : IRequestHandler<GetCashSession
     {
         var query = _dbContext.CashSessions.AsQueryable();
 
+        // Npgsql exige Kind=Utc para comparar contra columnas timestamptz; el binder
+        // de ASP.NET Core entrega las fechas del query string con Kind=Unspecified.
         if (request.FromDate.HasValue)
         {
-            query = query.Where(s => s.OpenedAt >= request.FromDate.Value);
+            var fromDate = DateTime.SpecifyKind(request.FromDate.Value, DateTimeKind.Utc);
+            query = query.Where(s => s.OpenedAt >= fromDate);
         }
 
         if (request.ToDate.HasValue)
         {
-            query = query.Where(s => s.OpenedAt <= request.ToDate.Value);
+            var toDate = DateTime.SpecifyKind(request.ToDate.Value, DateTimeKind.Utc);
+            query = query.Where(s => s.OpenedAt <= toDate);
         }
 
         if (request.CashRegisterId.HasValue)
