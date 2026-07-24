@@ -17,13 +17,25 @@ public class ProcessSaleCommandValidator : AbstractValidator<ProcessSaleCommand>
             item.RuleFor(i => i.Discount).GreaterThanOrEqualTo(0);
         });
 
+        RuleFor(x => x.Payments)
+            .NotEmpty()
+            .WithMessage("La venta debe tener al menos una forma de pago");
+
+        RuleForEach(x => x.Payments).ChildRules(payment =>
+        {
+            payment.RuleFor(p => p.Amount).GreaterThan(0);
+
+            payment.RuleFor(p => p.AmountTendered)
+                .GreaterThanOrEqualTo(p => p.Amount)
+                .When(p => p.AmountTendered.HasValue)
+                .WithMessage("El monto entregado no puede ser menor al monto del pago.");
+        });
+
         RuleFor(x => x.CashRegisterId)
             .NotEmpty();
 
-        RuleFor(x => x.AmountPaid)
-            .GreaterThanOrEqualTo(0);
-
-        // Si PaymentMethod == Cash, AmountPaid >= Total se valida en el handler,
-        // porque el total depende de los productos cargados (no se conoce aquí).
+        // La suma de Payments.Amount contra el total de la venta (con tolerancia de
+        // redondeo) se valida en el handler/dominio, porque el total depende de los
+        // productos cargados (no se conoce aquí).
     }
 }

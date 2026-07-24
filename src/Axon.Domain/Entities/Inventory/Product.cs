@@ -5,6 +5,8 @@ namespace Axon.Domain.Entities.Inventory;
 
 public class Product
 {
+    private readonly List<ProductTax> _taxes = new();
+
     public Guid Id { get; private set; }
     public string Sku { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
@@ -18,7 +20,8 @@ public class Product
     public Dictionary<string, JsonElement> Attributes { get; private set; } = new();
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }
-    public decimal TaxPercentage { get; private set; }
+
+    public IReadOnlyList<ProductTax> Taxes => _taxes;
 
     private Product()
     {
@@ -31,8 +34,7 @@ public class Product
         decimal cost,
         int minStock,
         Guid categoryId,
-        Guid unitId,
-        decimal taxPercentage = 0)
+        Guid unitId)
     {
         if (string.IsNullOrWhiteSpace(sku))
         {
@@ -59,8 +61,6 @@ public class Product
             throw new DomainException("El stock mínimo no puede ser negativo.");
         }
 
-        ValidateTaxPercentage(taxPercentage);
-
         return new Product
         {
             Id = Guid.NewGuid(),
@@ -75,24 +75,28 @@ public class Product
             UnitId = unitId,
             Attributes = new Dictionary<string, JsonElement>(),
             IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            TaxPercentage = taxPercentage
+            CreatedAt = DateTime.UtcNow
         };
     }
 
-    public void UpdateTaxPercentage(decimal taxPercentage)
+    // Reemplaza por completo el conjunto de impuestos configurados para el producto.
+    // El porcentaje es libre (lo define el usuario, sin whitelist); no se permite
+    // asignar el mismo TaxTypeId más de una vez en la misma llamada.
+    public void SetTaxes(IEnumerable<(Guid TaxTypeId, decimal Percentage)> taxes)
     {
-        ValidateTaxPercentage(taxPercentage);
+        var requested = taxes.ToList();
 
-        TaxPercentage = taxPercentage;
-    }
-
-    private static void ValidateTaxPercentage(decimal taxPercentage)
-    {
-        if (taxPercentage != 0 && taxPercentage != 5 && taxPercentage != 19)
+        if (requested.Select(t => t.TaxTypeId).Distinct().Count() != requested.Count)
         {
-            throw new DomainException("Porcentaje de IVA inválido. Valores permitidos: 0, 5, 19");
+            throw new DomainException("No se puede asignar el mismo impuesto más de una vez al mismo producto.");
         }
+
+        var newTaxes = requested
+            .Select(t => ProductTax.Create(Id, t.TaxTypeId, t.Percentage))
+            .ToList();
+
+        _taxes.Clear();
+        _taxes.AddRange(newTaxes);
     }
 
     public void UpdateAverageCost(decimal newAverageCost)

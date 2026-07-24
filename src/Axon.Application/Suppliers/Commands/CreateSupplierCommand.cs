@@ -1,13 +1,14 @@
+using Axon.Domain.Entities.Suppliers;
 using MediatR;
 
 namespace Axon.Application.Suppliers.Commands;
 
 public record CreateSupplierCommand(
     string Name,
-    string? Nit,
-    string? ContactName,
-    string? Phone,
-    string? Email,
+    SupplierDocumentType DocumentType,
+    string DocumentNumber,
+    string ContactName,
+    string Phone,
+    string Email,
     string? Address,
-    string? City,
-    int PaymentTermDays = 30) : IRequest<Guid>;
+    string? City) : IRequest<Guid>;

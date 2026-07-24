@@ -58,6 +58,13 @@ CREATE TABLE {SCHEMA_NAME}.cash_registers (
     is_active BOOLEAN NOT NULL DEFAULT true
 );
 
+CREATE TABLE {SCHEMA_NAME}.tax_types (
+    id UUID PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    code VARCHAR(20),
+    is_active BOOLEAN NOT NULL DEFAULT true
+);
+
 CREATE TABLE {SCHEMA_NAME}.products (
     id UUID PRIMARY KEY,
     sku VARCHAR(100) NOT NULL UNIQUE,
@@ -71,11 +78,21 @@ CREATE TABLE {SCHEMA_NAME}.products (
     unit_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.units(id),
     attributes JSONB,
     is_active BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    tax_percentage NUMERIC(5, 2) NOT NULL DEFAULT 0
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_products_attributes ON {SCHEMA_NAME}.products USING GIN (attributes);
+
+-- Impuestos vigentes configurados sobre cada producto (0 a N por producto,
+-- porcentaje libre definido por el usuario, sin whitelist). Ver sale_item_taxes
+-- para el snapshot histórico usado en las ventas ya realizadas.
+CREATE TABLE {SCHEMA_NAME}.product_taxes (
+    id UUID PRIMARY KEY,
+    product_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.products(id) ON DELETE CASCADE,
+    tax_type_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.tax_types(id),
+    percentage NUMERIC(9, 4) NOT NULL,
+    UNIQUE (product_id, tax_type_id)
+);
 
 CREATE TABLE {SCHEMA_NAME}.attribute_definitions (
     id UUID PRIMARY KEY,
@@ -120,11 +137,8 @@ CREATE TABLE {SCHEMA_NAME}.sales (
     sale_number VARCHAR(50) NOT NULL UNIQUE,
     customer_id UUID NULL,
     customer_name VARCHAR(200),
-    payment_method VARCHAR(50) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'Completed',
     total NUMERIC(12, 2) NOT NULL DEFAULT 0,
-    amount_paid NUMERIC(12, 2) NOT NULL DEFAULT 0,
-    change NUMERIC(12, 2) NOT NULL DEFAULT 0,
     notes TEXT,
     cash_register_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.cash_registers(id),
     created_by UUID NOT NULL,
@@ -140,6 +154,19 @@ CREATE INDEX idx_sales_created_status ON {SCHEMA_NAME}.sales (created_at, status
 
 CREATE INDEX idx_sales_customer_id ON {SCHEMA_NAME}.sales (customer_id);
 
+-- Pagos divididos: 1 a N formas de pago que cubren el total de la venta.
+-- amount_tendered/change solo aplican a pagos en efectivo.
+CREATE TABLE {SCHEMA_NAME}.sale_payments (
+    id UUID PRIMARY KEY,
+    sale_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.sales(id) ON DELETE CASCADE,
+    method VARCHAR(50) NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL,
+    amount_tendered NUMERIC(12, 2),
+    change NUMERIC(12, 2)
+);
+
+CREATE INDEX idx_sale_payments_sale_id ON {SCHEMA_NAME}.sale_payments (sale_id);
+
 CREATE TABLE {SCHEMA_NAME}.sale_items (
     id UUID PRIMARY KEY,
     sale_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.sales(id),
@@ -150,9 +177,19 @@ CREATE TABLE {SCHEMA_NAME}.sale_items (
     quantity INT NOT NULL,
     discount NUMERIC(12, 2) NOT NULL DEFAULT 0,
     subtotal NUMERIC(12, 2) NOT NULL,
-    tax_percentage NUMERIC(5, 2) NOT NULL DEFAULT 0,
-    tax_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
     subtotal_base NUMERIC(12, 2) NOT NULL DEFAULT 0
+);
+
+-- Snapshot histórico de los impuestos aplicados a cada línea de venta (0 a N).
+-- Sin FK a tax_types a propósito: el catálogo puede cambiar después y esta
+-- fila debe seguir siendo válida tal cual quedó al momento de la venta.
+CREATE TABLE {SCHEMA_NAME}.sale_item_taxes (
+    id UUID PRIMARY KEY,
+    sale_item_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.sale_items(id) ON DELETE CASCADE,
+    tax_type_id UUID NOT NULL,
+    tax_type_name VARCHAR(100) NOT NULL,
+    percentage NUMERIC(9, 4) NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL
 );
 
 CREATE TABLE {SCHEMA_NAME}.sale_returns (
@@ -162,6 +199,57 @@ CREATE TABLE {SCHEMA_NAME}.sale_returns (
     returned_by UUID NOT NULL,
     returned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     total NUMERIC(12, 2) NOT NULL
+);
+
+-- Consecutivo de factura por tenant: cada tenant tiene su PROPIA secuencia en
+-- su propio schema, por lo que nextval() nunca puede colisionar entre tenants
+-- (son objetos de Postgres completamente independientes), y es atómica frente
+-- a transacciones concurrentes dentro del mismo tenant.
+CREATE SEQUENCE {SCHEMA_NAME}.invoice_number_seq START 1;
+
+-- Registro auditable interno (no numeración legal tipo DIAN), congelado tal
+-- como se generó: items/impuestos/pagos son un snapshot, no se recalculan.
+CREATE TABLE {SCHEMA_NAME}.invoices (
+    id UUID PRIMARY KEY,
+    sale_id UUID NOT NULL UNIQUE REFERENCES {SCHEMA_NAME}.sales(id),
+    number BIGINT NOT NULL UNIQUE,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    sale_number VARCHAR(50) NOT NULL,
+    customer_name VARCHAR(200),
+    total NUMERIC(12, 2) NOT NULL
+);
+
+CREATE INDEX idx_invoices_issued_at ON {SCHEMA_NAME}.invoices (issued_at);
+
+CREATE TABLE {SCHEMA_NAME}.invoice_payments (
+    id UUID PRIMARY KEY,
+    invoice_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.invoices(id) ON DELETE CASCADE,
+    method VARCHAR(50) NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL,
+    amount_tendered NUMERIC(12, 2),
+    change NUMERIC(12, 2)
+);
+
+CREATE TABLE {SCHEMA_NAME}.invoice_items (
+    id UUID PRIMARY KEY,
+    invoice_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.invoices(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    product_sku VARCHAR(100) NOT NULL,
+    unit_price NUMERIC(12, 2) NOT NULL,
+    quantity INT NOT NULL,
+    discount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    subtotal NUMERIC(12, 2) NOT NULL,
+    subtotal_base NUMERIC(12, 2) NOT NULL DEFAULT 0
+);
+
+CREATE TABLE {SCHEMA_NAME}.invoice_item_taxes (
+    id UUID PRIMARY KEY,
+    invoice_item_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.invoice_items(id) ON DELETE CASCADE,
+    tax_type_id UUID NOT NULL,
+    tax_type_name VARCHAR(100) NOT NULL,
+    percentage NUMERIC(9, 4) NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL
 );
 
 CREATE TABLE {SCHEMA_NAME}.cash_sessions (
@@ -213,15 +301,16 @@ CREATE TABLE {SCHEMA_NAME}.tenant_config (
 CREATE TABLE {SCHEMA_NAME}.suppliers (
     id UUID PRIMARY KEY,
     name VARCHAR(200) NOT NULL,
-    nit VARCHAR(20),
-    contact_name VARCHAR(200),
-    phone VARCHAR(50),
-    email VARCHAR(200),
+    document_type VARCHAR(20) NOT NULL,
+    document_number VARCHAR(20) NOT NULL,
+    contact_name VARCHAR(200) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    email VARCHAR(200) NOT NULL,
     address VARCHAR(500),
     city VARCHAR(100),
-    payment_term_days INT NOT NULL DEFAULT 30,
     is_active BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (document_type, document_number)
 );
 
 CREATE TABLE {SCHEMA_NAME}.purchase_orders (
@@ -231,6 +320,13 @@ CREATE TABLE {SCHEMA_NAME}.purchase_orders (
     notes TEXT,
     order_date TIMESTAMPTZ NOT NULL DEFAULT now(),
     expected_date TIMESTAMPTZ,
+    -- Factura del proveedor para esta compra (referencia externa, no el id
+    -- interno de purchase_orders) y el tipo de documento del proveedor
+    -- snapshoteado al momento de la compra (no cambia si el proveedor edita su
+    -- tipo de documento después).
+    supplier_invoice_number VARCHAR(100),
+    supplier_invoice_date TIMESTAMPTZ,
+    supplier_document_type_at_purchase VARCHAR(20) NOT NULL,
     created_by UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -248,7 +344,20 @@ CREATE TABLE {SCHEMA_NAME}.purchase_order_items (
     quantity_ordered INT NOT NULL,
     quantity_received INT NOT NULL DEFAULT 0,
     unit_cost NUMERIC(12, 2) NOT NULL,
-    subtotal NUMERIC(12, 2) NOT NULL
+    subtotal NUMERIC(12, 2) NOT NULL,
+    tax_amount NUMERIC(12, 2) NOT NULL DEFAULT 0
+);
+
+-- Snapshot de impuestos aplicados a cada línea de compra, tomados de
+-- ProductTax vigente al momento de crear la orden (mismo patrón que
+-- sale_item_taxes). Sin FK a tax_types a propósito: histórico, no vigente.
+CREATE TABLE {SCHEMA_NAME}.purchase_order_item_taxes (
+    id UUID PRIMARY KEY,
+    purchase_order_item_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.purchase_order_items(id) ON DELETE CASCADE,
+    tax_type_id UUID NOT NULL,
+    tax_type_name VARCHAR(100) NOT NULL,
+    percentage NUMERIC(9, 4) NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL
 );
 
 CREATE TABLE {SCHEMA_NAME}.purchase_receipts (

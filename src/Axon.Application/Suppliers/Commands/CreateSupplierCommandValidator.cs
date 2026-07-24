@@ -10,15 +10,25 @@ public class CreateSupplierCommandValidator : AbstractValidator<CreateSupplierCo
             .NotEmpty()
             .MaximumLength(200);
 
-        RuleFor(x => x.Nit)
-            .MaximumLength(20)
-            .When(x => x.Nit is not null);
+        RuleFor(x => x.DocumentType)
+            .IsInEnum();
+
+        RuleFor(x => x.DocumentNumber)
+            .NotEmpty()
+            .MaximumLength(20);
+
+        RuleFor(x => x.ContactName)
+            .NotEmpty()
+            .MaximumLength(200)
+            .Must(name => name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length >= 2)
+            .WithMessage("El nombre de contacto debe incluir nombre y apellido.");
+
+        RuleFor(x => x.Phone)
+            .NotEmpty()
+            .MaximumLength(50);
 
         RuleFor(x => x.Email)
-            .EmailAddress()
-            .When(x => x.Email is not null);
-
-        RuleFor(x => x.PaymentTermDays)
-            .GreaterThan(0);
+            .NotEmpty()
+            .EmailAddress();
     }
 }

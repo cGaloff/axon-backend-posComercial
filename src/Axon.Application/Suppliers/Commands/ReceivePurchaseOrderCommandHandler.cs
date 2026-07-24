@@ -32,12 +32,12 @@ public class ReceivePurchaseOrderCommandHandler : IRequestHandler<ReceivePurchas
 
         if (order is null)
         {
-            throw new DomainException("La orden de compra no existe");
+            throw new DomainException("La compra no existe");
         }
 
         if (order.Status == PurchaseOrderStatus.Cancelled)
         {
-            throw new DomainException("No se puede recibir una orden cancelada");
+            throw new DomainException("No se puede recibir una compra cancelada");
         }
 
         var warehouse = await _dbContext.Warehouses.SingleOrDefaultAsync(w => w.IsDefault, cancellationToken);
@@ -100,7 +100,7 @@ public class ReceivePurchaseOrderCommandHandler : IRequestHandler<ReceivePurchas
                 InventoryMovementType.Purchase,
                 itemRequest.QuantityReceived,
                 stockBefore,
-                $"Recepción OC #{order.Id}",
+                $"Recepción compra #{order.Id}",
                 currentUserId);
 
             _dbContext.InventoryMovements.Add(movement);

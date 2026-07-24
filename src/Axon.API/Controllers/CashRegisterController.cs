@@ -71,6 +71,15 @@ public class CashRegisterController : ControllerBase
         return Ok(ApiResponse<CloseCashSessionResult>.Ok(result, "Sesión de caja cerrada"));
     }
 
+    [HttpGet("balance")]
+    [RequirePermission("cash_register:read")]
+    public async Task<IActionResult> GetConsolidatedBalance()
+    {
+        var result = await _mediator.Send(new GetConsolidatedCashBalanceQuery());
+
+        return Ok(ApiResponse<ConsolidatedCashBalanceDto>.Ok(result));
+    }
+
     [HttpGet("sessions/{id:guid}/summary")]
     [RequirePermission("cash_register:read")]
     public async Task<IActionResult> GetSessionSummary(Guid id)

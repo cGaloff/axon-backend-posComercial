@@ -1,3 +1,4 @@
+using Axon.Domain.Entities.Suppliers;
 using MediatR;
 
 namespace Axon.Application.Suppliers.Queries;
@@ -9,12 +10,13 @@ public record GetSuppliersQuery(
 public record SupplierDto(
     Guid Id,
     string Name,
-    string? Nit,
-    string? ContactName,
-    string? Phone,
-    string? Email,
+    SupplierDocumentType DocumentType,
+    string DocumentNumber,
+    string ContactName,
+    string Phone,
+    string Email,
+    string? Address,
     string? City,
-    int PaymentTermDays,
     bool IsActive,
     int ProductCount,
     decimal TotalDebt);

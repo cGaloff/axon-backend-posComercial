@@ -20,27 +20,24 @@ public class CreateSupplierCommandHandler : IRequestHandler<CreateSupplierComman
 
     public async Task<Guid> Handle(CreateSupplierCommand request, CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(request.Nit))
-        {
-            var nitInUse = await _dbContext.Suppliers.AnyAsync(s => s.Nit == request.Nit, cancellationToken);
+        var documentInUse = await _dbContext.Suppliers.AnyAsync(
+            s => s.DocumentType == request.DocumentType && s.DocumentNumber == request.DocumentNumber,
+            cancellationToken);
 
-            if (nitInUse)
-            {
-                throw new DomainException("Ya existe un proveedor con ese NIT");
-            }
+        if (documentInUse)
+        {
+            throw new DomainException($"Ya existe un proveedor con el documento '{request.DocumentType} {request.DocumentNumber}'");
         }
 
-        var supplier = Supplier.Create(request.Name);
-
-        supplier.Update(
+        var supplier = Supplier.Create(
             request.Name,
-            request.Nit,
+            request.DocumentType,
+            request.DocumentNumber,
             request.ContactName,
             request.Phone,
             request.Email,
             request.Address,
-            request.City,
-            request.PaymentTermDays);
+            request.City);
 
         _dbContext.Suppliers.Add(supplier);
         await _unitOfWork.CommitAsync(cancellationToken);

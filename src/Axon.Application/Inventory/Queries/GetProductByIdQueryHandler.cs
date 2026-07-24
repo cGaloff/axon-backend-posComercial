@@ -36,7 +36,8 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
                 u.Abbreviation,
                 p.Attributes,
                 p.Stock <= p.MinStock,
-                p.IsActive))
+                p.IsActive,
+                p.Taxes.Select(t => new ProductTaxDto(t.TaxTypeId, string.Empty, t.Percentage)).ToList()))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (product is null)
@@ -47,6 +48,22 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
         if (!product.IsActive)
         {
             throw new DomainException("Producto inactivo");
+        }
+
+        if (product.Taxes.Count > 0)
+        {
+            var taxTypeIds = product.Taxes.Select(t => t.TaxTypeId).ToList();
+
+            var taxTypeNames = await _dbContext.TaxTypes
+                .Where(t => taxTypeIds.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id, t => t.Name, cancellationToken);
+
+            product = product with
+            {
+                Taxes = product.Taxes
+                    .Select(t => t with { TaxTypeName = taxTypeNames.GetValueOrDefault(t.TaxTypeId, string.Empty) })
+                    .ToList()
+            };
         }
 
         return product;

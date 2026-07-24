@@ -16,16 +16,28 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
             .IsRequired()
             .HasMaxLength(200);
 
-        builder.Property(s => s.Nit)
+        builder.Property(s => s.DocumentType)
+            .HasConversion<string>()
+            .IsRequired()
             .HasMaxLength(20);
 
+        builder.Property(s => s.DocumentNumber)
+            .IsRequired()
+            .HasMaxLength(20);
+
+        builder.HasIndex(s => new { s.DocumentType, s.DocumentNumber })
+            .IsUnique();
+
         builder.Property(s => s.ContactName)
+            .IsRequired()
             .HasMaxLength(200);
 
         builder.Property(s => s.Phone)
+            .IsRequired()
             .HasMaxLength(50);
 
         builder.Property(s => s.Email)
+            .IsRequired()
             .HasMaxLength(200);
 
         builder.Property(s => s.Address)
@@ -33,9 +45,6 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
 
         builder.Property(s => s.City)
             .HasMaxLength(100);
-
-        builder.Property(s => s.PaymentTermDays)
-            .HasDefaultValue(30);
 
         builder.Property(s => s.IsActive)
             .HasDefaultValue(true);

@@ -75,3 +75,11 @@ VALUES (gen_random_uuid(), 'Caja Principal', 'Caja principal de la tienda', true
 
 INSERT INTO {SCHEMA_NAME}.tenant_config (id, business_name, is_responsable_iva, created_at, updated_at)
 VALUES (gen_random_uuid(), 'Mi Tienda', false, now(), now());
+
+-- Catálogo inicial de impuestos: el tenant es libre de editarlo, agregar otros
+-- (ej. INC) o desactivar los que no aplique a su negocio.
+INSERT INTO {SCHEMA_NAME}.tax_types (id, name, code, is_active)
+VALUES
+    (gen_random_uuid(), 'IVA', 'IVA', true),
+    (gen_random_uuid(), 'ICA', 'ICA', true),
+    (gen_random_uuid(), 'INC', 'INC', true);

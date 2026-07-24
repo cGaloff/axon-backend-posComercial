@@ -26,13 +26,22 @@ public class GetSaleTaxSummaryQueryHandler : IRequestHandler<GetSaleTaxSummaryQu
         }
 
         var subtotalBase = sale.Items.Sum(i => i.SubtotalBase);
-        var totalTax = sale.Items.Sum(i => i.TaxAmount);
+        var totalTax = sale.Items.Sum(i => i.TotalTaxAmount);
         var discount = sale.Items.Sum(i => i.Discount);
 
+        // Cada impuesto de cada línea comparte la base gravable de esa línea (todos
+        // los impuestos se calculan sobre la misma base, no se componen entre sí).
         var breakdown = sale.Items
-            .GroupBy(i => i.TaxPercentage)
-            .Select(g => new TaxBreakdownDto(g.Key, g.Sum(i => i.SubtotalBase), g.Sum(i => i.TaxAmount)))
-            .OrderBy(b => b.Rate)
+            .SelectMany(i => i.Taxes.Select(t => new { i.SubtotalBase, Tax = t }))
+            .GroupBy(x => new { x.Tax.TaxTypeId, x.Tax.TaxTypeName, x.Tax.Percentage })
+            .Select(g => new TaxBreakdownDto(
+                g.Key.TaxTypeId,
+                g.Key.TaxTypeName,
+                g.Key.Percentage,
+                g.Sum(x => x.SubtotalBase),
+                g.Sum(x => x.Tax.Amount)))
+            .OrderBy(b => b.TaxTypeName)
+            .ThenBy(b => b.Rate)
             .ToList();
 
         return new SaleTaxSummaryDto(subtotalBase, totalTax, subtotalBase + totalTax, discount, breakdown);

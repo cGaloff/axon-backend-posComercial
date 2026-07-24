@@ -4,17 +4,23 @@ namespace Axon.Domain.Entities.Sales;
 
 public class Sale
 {
+    // Tolerancia de redondeo entre la suma de pagos y el total de la venta: 1
+    // centavo. Las columnas de dinero son decimal(12,2) (2 decimales); al dividir
+    // un total entre N pagos, cada monto puede redondearse independientemente a 2
+    // decimales (p. ej. en el cliente/POS), lo que puede dejar una diferencia de
+    // hasta un centavo por operación de redondeo. Con 1 centavo se cubre ese caso
+    // común sin ocultar un descuadre real (que sería de varios centavos o más).
+    public const decimal PaymentTolerance = 0.01m;
+
     private readonly List<SaleItem> _items = new();
+    private readonly List<SalePayment> _payments = new();
 
     public Guid Id { get; private set; }
     public string SaleNumber { get; private set; } = string.Empty;
     public Guid? CustomerId { get; private set; }
     public string CustomerName { get; private set; } = string.Empty;
-    public PaymentMethod PaymentMethod { get; private set; }
     public SaleStatus Status { get; private set; }
     public decimal Total { get; private set; }
-    public decimal AmountPaid { get; private set; }
-    public decimal Change { get; private set; }
     public string Notes { get; private set; } = string.Empty;
     public Guid CashRegisterId { get; private set; }
     public Guid CreatedBy { get; private set; }
@@ -26,13 +32,13 @@ public class Sale
     public Guid? ReturnedBy { get; private set; }
 
     public IReadOnlyList<SaleItem> Items => _items;
+    public IReadOnlyList<SalePayment> Payments => _payments;
 
     private Sale()
     {
     }
 
     public static Sale Create(
-        PaymentMethod method,
         Guid cashRegisterId,
         Guid createdBy,
         Guid? customerId = null,
@@ -42,21 +48,16 @@ public class Sale
         var randomSuffix = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
         var saleNumber = $"VTA-{DateTime.UtcNow:yyyyMMdd}-{randomSuffix}";
 
-        var status = method is PaymentMethod.Card or PaymentMethod.Transfer
-            ? SaleStatus.PendingPayment
-            : SaleStatus.Completed;
-
         return new Sale
         {
             Id = Guid.NewGuid(),
             SaleNumber = saleNumber,
             CustomerId = customerId,
             CustomerName = customerName ?? string.Empty,
-            PaymentMethod = method,
-            Status = status,
+            // Sin pagos todavía, se asume Completed; AddPayment recalcula según los
+            // métodos de pago que efectivamente se agreguen (Card/Transfer => Pending).
+            Status = SaleStatus.Completed,
             Total = 0,
-            AmountPaid = 0,
-            Change = 0,
             Notes = notes ?? string.Empty,
             CashRegisterId = cashRegisterId,
             CreatedBy = createdBy,
@@ -70,20 +71,33 @@ public class Sale
         Total = _items.Sum(i => i.Subtotal);
     }
 
-    public void SetAmountPaid(decimal amountPaid)
+    // Tarjeta/transferencia requieren confirmación externa (ver ConfirmSalePaymentCommand
+    // y PaymentWebhookController); si CUALQUIER pago de la venta usa uno de esos
+    // métodos, la venta entera queda pendiente hasta que se confirme. Se recalcula
+    // en cada llamada para no depender del orden en que se agregan los pagos.
+    public void AddPayment(SalePayment payment)
     {
-        if (PaymentMethod != PaymentMethod.Cash)
-        {
-            throw new DomainException("Solo se puede registrar el monto pagado para ventas en efectivo.");
-        }
+        _payments.Add(payment);
 
-        if (amountPaid < Total)
+        if (Status is SaleStatus.Completed or SaleStatus.PendingPayment)
         {
-            throw new DomainException("El monto pagado no puede ser menor al total de la venta.");
+            Status = _payments.Any(p => p.Method is PaymentMethod.Card or PaymentMethod.Transfer)
+                ? SaleStatus.PendingPayment
+                : SaleStatus.Completed;
         }
+    }
 
-        AmountPaid = amountPaid;
-        Change = amountPaid - Total;
+    // Debe llamarse después de agregar todos los ítems y todos los pagos: valida
+    // que la suma de los pagos cubra el total dentro de la tolerancia de redondeo.
+    public void EnsurePaymentsMatchTotal()
+    {
+        var paid = _payments.Sum(p => p.Amount);
+
+        if (Math.Abs(paid - Total) > PaymentTolerance)
+        {
+            throw new DomainException(
+                $"La suma de los pagos ({paid}) no coincide con el total de la venta ({Total}).");
+        }
     }
 
     public void Complete()

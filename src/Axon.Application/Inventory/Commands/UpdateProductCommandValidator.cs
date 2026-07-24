@@ -27,5 +27,15 @@ public class UpdateProductCommandValidator : AbstractValidator<UpdateProductComm
 
         RuleFor(x => x.UnitId)
             .NotEmpty();
+
+        RuleForEach(x => x.Taxes).ChildRules(tax =>
+        {
+            tax.RuleFor(t => t.TaxTypeId).NotEmpty();
+            tax.RuleFor(t => t.Percentage).GreaterThanOrEqualTo(0);
+        });
+
+        RuleFor(x => x.Taxes)
+            .Must(taxes => taxes is null || taxes.Select(t => t.TaxTypeId).Distinct().Count() == taxes.Count)
+            .WithMessage("No se puede asignar el mismo impuesto más de una vez al mismo producto.");
     }
 }

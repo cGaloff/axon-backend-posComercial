@@ -16,4 +16,7 @@ public record ProductDto(
     string UnitAbbreviation,
     Dictionary<string, JsonElement> Attributes,
     bool IsLowStock,
-    bool IsActive);
+    bool IsActive,
+    List<ProductTaxDto> Taxes);
+
+public record ProductTaxDto(Guid TaxTypeId, string TaxTypeName, decimal Percentage);

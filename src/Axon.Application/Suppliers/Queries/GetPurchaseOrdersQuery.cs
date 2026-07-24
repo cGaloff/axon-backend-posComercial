@@ -17,5 +17,7 @@ public record PurchaseOrderDto(
     decimal TotalOrdered,
     DateTime OrderDate,
     DateTime? ExpectedDate,
+    string? SupplierInvoiceNumber,
+    DateTime? SupplierInvoiceDate,
     int ItemCount,
     int PendingItemsCount);

@@ -101,6 +101,9 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
+// Inventory
+builder.Services.AddScoped<IBarcodeService, BarcodeService>();
+
 // Cash Register
 builder.Services.AddScoped<ICashSessionRepository, CashSessionRepository>();
 

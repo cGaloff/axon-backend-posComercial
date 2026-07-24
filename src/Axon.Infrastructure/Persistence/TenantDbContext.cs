@@ -1,9 +1,11 @@
 using Axon.Application.Interfaces;
 using Axon.Domain.Entities;
 using Axon.Domain.Entities.CashRegister;
+using Axon.Domain.Entities.Invoicing;
 using Axon.Domain.Entities.Inventory;
 using Axon.Domain.Entities.Sales;
 using Axon.Domain.Entities.Suppliers;
+using Axon.Domain.Entities.Taxes;
 using Axon.Domain.Interfaces;
 using Axon.Infrastructure.Persistence.Configurations;
 using Axon.Infrastructure.Persistence.Interceptors;
@@ -40,6 +42,8 @@ public class TenantDbContext : DbContext, IApplicationDbContext
 
     public DbSet<AttributeDefinition> AttributeDefinitions => Set<AttributeDefinition>();
 
+    public DbSet<TaxType> TaxTypes => Set<TaxType>();
+
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
 
     public DbSet<StockAlert> StockAlerts => Set<StockAlert>();
@@ -47,6 +51,8 @@ public class TenantDbContext : DbContext, IApplicationDbContext
     public DbSet<Sale> Sales => Set<Sale>();
 
     public DbSet<SaleReturn> SaleReturns => Set<SaleReturn>();
+
+    public DbSet<Invoice> Invoices => Set<Invoice>();
 
     public DbSet<CashRegisterEntity> CashRegisters => Set<CashRegisterEntity>();
 
@@ -68,6 +74,27 @@ public class TenantDbContext : DbContext, IApplicationDbContext
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public async Task<long> GetNextInvoiceNumberAsync(CancellationToken cancellationToken)
+    {
+        if (Database.IsRelational())
+        {
+            // nextval() es atómico en Postgres: sin condiciones de carrera entre
+            // transacciones concurrentes, y cada tenant tiene su propia secuencia
+            // en su propio schema (ver tenant_schema_template.sql), sin ninguna
+            // forma de colisionar con la de otro tenant.
+            var rows = await Database.SqlQueryRaw<long>("SELECT nextval('invoice_number_seq')")
+                .ToListAsync(cancellationToken);
+
+            return rows[0];
+        }
+
+        // Proveedores no relacionales (InMemory, solo en pruebas) no soportan
+        // nextval(); se calcula el siguiente consecutivo en memoria. Nunca se
+        // ejecuta en producción, donde Npgsql siempre es relacional.
+        var maxNumber = await Invoices.Select(i => (long?)i.Number).MaxAsync(cancellationToken);
+        return (maxNumber ?? 0) + 1;
+    }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.AddInterceptors(new TenantSchemaInterceptor(_tenantContext));
@@ -85,10 +112,12 @@ public class TenantDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new WarehouseConfiguration());
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new AttributeDefinitionConfiguration());
+        modelBuilder.ApplyConfiguration(new TaxTypeConfiguration());
         modelBuilder.ApplyConfiguration(new InventoryMovementConfiguration());
         modelBuilder.ApplyConfiguration(new StockAlertConfiguration());
         modelBuilder.ApplyConfiguration(new SaleConfiguration());
         modelBuilder.ApplyConfiguration(new SaleReturnConfiguration());
+        modelBuilder.ApplyConfiguration(new InvoiceConfiguration());
         modelBuilder.ApplyConfiguration(new CashRegisterConfiguration());
         modelBuilder.ApplyConfiguration(new CashSessionConfiguration());
         modelBuilder.ApplyConfiguration(new CashMovementConfiguration());

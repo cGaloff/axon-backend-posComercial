@@ -2,6 +2,8 @@ using MediatR;
 
 namespace Axon.Application.Inventory.Commands;
 
+public record ProductTaxRequest(Guid TaxTypeId, decimal Percentage);
+
 public record CreateProductCommand(
     string Sku,
     string Name,
@@ -12,4 +14,4 @@ public record CreateProductCommand(
     Guid CategoryId,
     Guid UnitId,
     Dictionary<string, string>? Attributes,
-    decimal TaxPercentage = 0) : IRequest<Guid>;
+    List<ProductTaxRequest>? Taxes = null) : IRequest<Guid>;

@@ -49,11 +49,19 @@ public class GetSalesHistoryQueryHandler : IRequestHandler<GetSalesHistoryQuery,
                 s.Id,
                 s.SaleNumber,
                 s.CustomerName,
-                s.PaymentMethod.ToString(),
                 s.Status.ToString(),
                 s.Total,
                 s.CreatedAt,
-                s.Items.Count))
+                s.Items.Count,
+                s.Payments
+                    .Select(p => new SalePaymentDto(p.Id, p.Method.ToString(), p.Amount, p.AmountTendered, p.Change))
+                    .ToList(),
+                // Null si la venta aún no tiene factura emitida (p. ej. pago con
+                // tarjeta/transferencia todavía pendiente de confirmación).
+                _dbContext.Invoices
+                    .Where(i => i.SaleId == s.Id)
+                    .Select(i => (long?)i.Number)
+                    .SingleOrDefault()))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<SaleDto>(totalCount, request.Page, request.PageSize, items);

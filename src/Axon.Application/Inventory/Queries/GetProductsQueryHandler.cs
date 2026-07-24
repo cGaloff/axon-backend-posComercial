@@ -39,6 +39,20 @@ public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, PagedRe
         {
             query = query.Where(p => p.Stock > 0);
         }
+        else if (request.OnlyInStock == false)
+        {
+            query = query.Where(p => p.Stock <= 0);
+        }
+
+        if (request.MinPrice.HasValue)
+        {
+            query = query.Where(p => p.Price >= request.MinPrice.Value);
+        }
+
+        if (request.MaxPrice.HasValue)
+        {
+            query = query.Where(p => p.Price <= request.MaxPrice.Value);
+        }
 
         if (request.AttributeFilters is { Count: > 0 })
         {
@@ -70,11 +84,37 @@ public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, PagedRe
                 u.Abbreviation,
                 p.Attributes,
                 p.Stock <= p.MinStock,
-                p.IsActive))
+                p.IsActive,
+                p.Taxes.Select(t => new ProductTaxDto(t.TaxTypeId, string.Empty, t.Percentage)).ToList()))
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
 
-        return new PagedResult<ProductDto>(totalCount, request.Page, request.PageSize, items);
+        var itemsWithTaxNames = await ResolveTaxTypeNamesAsync(items, cancellationToken);
+
+        return new PagedResult<ProductDto>(totalCount, request.Page, request.PageSize, itemsWithTaxNames);
+    }
+
+    private async Task<List<ProductDto>> ResolveTaxTypeNamesAsync(List<ProductDto> products, CancellationToken cancellationToken)
+    {
+        var taxTypeIds = products.SelectMany(p => p.Taxes).Select(t => t.TaxTypeId).Distinct().ToList();
+
+        if (taxTypeIds.Count == 0)
+        {
+            return products;
+        }
+
+        var taxTypeNames = await _dbContext.TaxTypes
+            .Where(t => taxTypeIds.Contains(t.Id))
+            .ToDictionaryAsync(t => t.Id, t => t.Name, cancellationToken);
+
+        return products
+            .Select(p => p with
+            {
+                Taxes = p.Taxes
+                    .Select(t => t with { TaxTypeName = taxTypeNames.GetValueOrDefault(t.TaxTypeId, string.Empty) })
+                    .ToList()
+            })
+            .ToList();
     }
 }

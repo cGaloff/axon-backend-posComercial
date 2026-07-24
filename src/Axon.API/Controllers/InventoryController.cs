@@ -18,7 +18,7 @@ public class InventoryController : ControllerBase
 {
     private static readonly HashSet<string> KnownProductQueryKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "search", "categoryId", "unitId", "onlyInStock", "page", "pageSize"
+        "search", "categoryId", "unitId", "onlyInStock", "minPrice", "maxPrice", "page", "pageSize"
     };
 
     private readonly IMediator _mediator;
@@ -35,6 +35,8 @@ public class InventoryController : ControllerBase
         [FromQuery] Guid? categoryId,
         [FromQuery] Guid? unitId,
         [FromQuery] bool? onlyInStock,
+        [FromQuery] decimal? minPrice,
+        [FromQuery] decimal? maxPrice,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
@@ -47,6 +49,8 @@ public class InventoryController : ControllerBase
             categoryId,
             unitId,
             onlyInStock,
+            minPrice,
+            maxPrice,
             attributeFilters.Count > 0 ? attributeFilters : null,
             page,
             pageSize);
@@ -70,7 +74,7 @@ public class InventoryController : ControllerBase
             request.CategoryId,
             request.UnitId,
             request.Attributes,
-            request.TaxPercentage);
+            request.Taxes?.Select(t => new ProductTaxRequest(t.TaxTypeId, t.Percentage)).ToList());
 
         var id = await _mediator.Send(command);
 
@@ -111,11 +115,21 @@ public class InventoryController : ControllerBase
             request.CategoryId,
             request.UnitId,
             request.Attributes,
-            request.TaxPercentage);
+            request.Taxes?.Select(t => new ProductTaxRequest(t.TaxTypeId, t.Percentage)).ToList());
 
         await _mediator.Send(command);
 
         return Ok(ApiResponse<string>.Ok("ok", "Producto actualizado exitosamente"));
+    }
+
+    // Bajo demanda (no se persiste), mismo criterio que el recibo PDF de venta.
+    [HttpGet("products/{id:guid}/barcode")]
+    [RequirePermission("inventory:read")]
+    public async Task<IActionResult> GetProductBarcode(Guid id)
+    {
+        var barcode = await _mediator.Send(new GetProductBarcodeQuery(id));
+
+        return File(barcode, "image/bmp");
     }
 
     [HttpDelete("products/{id:guid}")]
@@ -188,5 +202,41 @@ public class InventoryController : ControllerBase
         var id = await _mediator.Send(command);
 
         return StatusCode(StatusCodes.Status201Created, ApiResponse<Guid>.Ok(id, "Atributo creado exitosamente"));
+    }
+
+    [HttpGet("tax-types")]
+    [RequirePermission("inventory:read")]
+    public async Task<IActionResult> GetTaxTypes([FromQuery] bool includeInactive = false)
+    {
+        var result = await _mediator.Send(new GetTaxTypesQuery(includeInactive));
+
+        return Ok(ApiResponse<List<TaxTypeDto>>.Ok(result));
+    }
+
+    [HttpPost("tax-types")]
+    [RequirePermission("inventory:write")]
+    public async Task<IActionResult> CreateTaxType(CreateTaxTypeRequest request)
+    {
+        var id = await _mediator.Send(new CreateTaxTypeCommand(request.Name, request.Code));
+
+        return StatusCode(StatusCodes.Status201Created, ApiResponse<Guid>.Ok(id, "Impuesto creado exitosamente"));
+    }
+
+    [HttpPut("tax-types/{id:guid}")]
+    [RequirePermission("inventory:write")]
+    public async Task<IActionResult> UpdateTaxType(Guid id, UpdateTaxTypeRequest request)
+    {
+        await _mediator.Send(new UpdateTaxTypeCommand(id, request.Name, request.Code));
+
+        return Ok(ApiResponse<string>.Ok("ok", "Impuesto actualizado exitosamente"));
+    }
+
+    [HttpDelete("tax-types/{id:guid}")]
+    [RequirePermission("inventory:write")]
+    public async Task<IActionResult> DeactivateTaxType(Guid id)
+    {
+        await _mediator.Send(new DeactivateTaxTypeCommand(id));
+
+        return Ok(ApiResponse<string>.Ok("ok", "Impuesto desactivado exitosamente"));
     }
 }

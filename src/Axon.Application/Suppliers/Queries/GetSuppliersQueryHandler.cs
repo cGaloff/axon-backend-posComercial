@@ -53,12 +53,13 @@ public class GetSuppliersQueryHandler : IRequestHandler<GetSuppliersQuery, List<
         return suppliers.Select(s => new SupplierDto(
             s.Id,
             s.Name,
-            s.Nit,
+            s.DocumentType,
+            s.DocumentNumber,
             s.ContactName,
             s.Phone,
             s.Email,
+            s.Address,
             s.City,
-            s.PaymentTermDays,
             s.IsActive,
             productCounts.GetValueOrDefault(s.Id),
             totalReceived.GetValueOrDefault(s.Id) - totalPaid.GetValueOrDefault(s.Id)))

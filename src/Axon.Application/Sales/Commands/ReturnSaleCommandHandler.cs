@@ -86,8 +86,14 @@ public class ReturnSaleCommandHandler : IRequestHandler<ReturnSaleCommand, Media
         _dbContext.InventoryMovements.AddRange(movements);
 
         // Solo efectivo y fiado afectan el monto físico de caja; tarjeta y
-        // transferencia no tocan ninguna sesión al devolverse.
-        if (sale.PaymentMethod == PaymentMethod.Cash || sale.PaymentMethod == PaymentMethod.Credit)
+        // transferencia no tocan ninguna sesión al devolverse. Con pagos divididos,
+        // se revierte el monto de CADA pago en efectivo/fiado por separado (no el
+        // total de la venta), ya que solo esa porción llegó a afectar la caja.
+        var cashOrCreditPayments = sale.Payments
+            .Where(p => p.Method is PaymentMethod.Cash or PaymentMethod.Credit)
+            .ToList();
+
+        if (cashOrCreditPayments.Count > 0)
         {
             var activeSession = await _dbContext.CashSessions
                 .FirstOrDefaultAsync(
@@ -96,17 +102,21 @@ public class ReturnSaleCommandHandler : IRequestHandler<ReturnSaleCommand, Media
 
             if (activeSession is not null)
             {
-                var returnMovement = CashMovement.Create(
+                var returnMovements = cashOrCreditPayments.Select(payment => CashMovement.Create(
                     activeSession.Id,
                     CashMovementType.SaleReturn,
-                    sale.Total,
+                    payment.Amount,
                     $"Devolución venta {sale.SaleNumber}",
                     returnedBy,
-                    sale.Id);
+                    sale.Id))
+                    .ToList();
 
-                activeSession.AddCashMovement(sale.Total, CashMovementType.SaleReturn);
+                foreach (var payment in cashOrCreditPayments)
+                {
+                    activeSession.AddCashMovement(payment.Amount, CashMovementType.SaleReturn);
+                }
 
-                _dbContext.CashMovements.Add(returnMovement);
+                _dbContext.CashMovements.AddRange(returnMovements);
             }
             else
             {

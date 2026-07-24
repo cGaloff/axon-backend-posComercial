@@ -13,4 +13,4 @@ public record UpdateProductCommand(
     Guid CategoryId,
     Guid UnitId,
     Dictionary<string, string>? Attributes,
-    decimal TaxPercentage = 0) : IRequest<MediatRUnit>;
+    List<ProductTaxRequest>? Taxes = null) : IRequest<MediatRUnit>;

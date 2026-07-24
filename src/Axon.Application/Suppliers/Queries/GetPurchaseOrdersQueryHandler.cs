@@ -49,6 +49,8 @@ public class GetPurchaseOrdersQueryHandler : IRequestHandler<GetPurchaseOrdersQu
             o.TotalOrdered,
             o.OrderDate,
             o.ExpectedDate,
+            o.SupplierInvoiceNumber,
+            o.SupplierInvoiceDate,
             o.Items.Count,
             o.Items.Count(i => i.PendingQuantity > 0)))
             .ToList();
