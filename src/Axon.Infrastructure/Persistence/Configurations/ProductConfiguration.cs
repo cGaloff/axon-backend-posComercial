@@ -20,8 +20,12 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .IsRequired()
             .HasMaxLength(100);
 
+        // Unicidad de SKU solo entre productos activos: Deactivate() es un
+        // soft-delete, así que el SKU de un producto desactivado debe quedar
+        // libre para reutilizarse (ver tenant_schema_template.sql / migración 006).
         builder.HasIndex(p => p.Sku)
-            .IsUnique();
+            .IsUnique()
+            .HasFilter("is_active");
 
         builder.Property(p => p.Name)
             .IsRequired()

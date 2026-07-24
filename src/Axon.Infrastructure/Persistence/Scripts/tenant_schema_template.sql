@@ -67,7 +67,7 @@ CREATE TABLE {SCHEMA_NAME}.tax_types (
 
 CREATE TABLE {SCHEMA_NAME}.products (
     id UUID PRIMARY KEY,
-    sku VARCHAR(100) NOT NULL UNIQUE,
+    sku VARCHAR(100) NOT NULL,
     name VARCHAR(200) NOT NULL,
     description TEXT,
     price DECIMAL(12, 2) NOT NULL,
@@ -80,6 +80,10 @@ CREATE TABLE {SCHEMA_NAME}.products (
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Unicidad de SKU solo entre productos ACTIVOS: al desactivar (soft-delete)
+-- un producto, su SKU queda libre para reutilizarse en uno nuevo.
+CREATE UNIQUE INDEX idx_products_sku_active ON {SCHEMA_NAME}.products (sku) WHERE is_active;
 
 CREATE INDEX idx_products_attributes ON {SCHEMA_NAME}.products USING GIN (attributes);
 

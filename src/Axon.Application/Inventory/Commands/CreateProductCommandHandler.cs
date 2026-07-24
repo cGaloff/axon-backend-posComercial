@@ -21,7 +21,10 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
 
     public async Task<Guid> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
-        var skuInUse = await _dbContext.Products.AnyAsync(p => p.Sku == request.Sku, cancellationToken);
+        // Solo bloquea SKUs de productos ACTIVOS: Deactivate() es un soft-delete
+        // (el producto sigue en la tabla con IsActive = false), así que un SKU
+        // "eliminado" debe quedar libre para reutilizarse en un producto nuevo.
+        var skuInUse = await _dbContext.Products.AnyAsync(p => p.Sku == request.Sku && p.IsActive, cancellationToken);
 
         if (skuInUse)
         {
