@@ -1,4 +1,5 @@
 using Axon.Application.Interfaces;
+using Axon.Application.Sales;
 using Axon.Domain.Exceptions;
 using Axon.Domain.Interfaces;
 using MediatR;
@@ -43,9 +44,11 @@ public class GetInvoicePdfBySaleIdQueryHandler : IRequestHandler<GetInvoicePdfBy
         var config = await _tenantConfigRepository.GetAsync()
             ?? throw new DomainException("Configuración del tenant no encontrada");
 
+        var cashierName = await SaleReceiptContext.ResolveCashierNameAsync(_dbContext, sale, cancellationToken);
+
         // Reutiliza el mismo servicio de PDF ya usado al emitir la factura (ver
         // IssueInvoiceCommandHandler): la venta ya no cambia después de completarse,
         // así que regenerarlo aquí produce el mismo contenido que el original.
-        return _pdfService.GenerateSaleReceipt(sale, config);
+        return _pdfService.GenerateSaleReceipt(sale, config, cashierName);
     }
 }

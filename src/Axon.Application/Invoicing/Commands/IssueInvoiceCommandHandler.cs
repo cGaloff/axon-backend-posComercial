@@ -1,4 +1,5 @@
 using Axon.Application.Interfaces;
+using Axon.Application.Sales;
 using Axon.Domain.Entities.Invoicing;
 using Axon.Domain.Entities.Sales;
 using Axon.Domain.Exceptions;
@@ -52,9 +53,11 @@ public class IssueInvoiceCommandHandler : IRequestHandler<IssueInvoiceCommand, I
         var existingInvoice = await _dbContext.Invoices
             .SingleOrDefaultAsync(i => i.SaleId == sale.Id, cancellationToken);
 
+        var cashierName = await SaleReceiptContext.ResolveCashierNameAsync(_dbContext, sale, cancellationToken);
+
         if (existingInvoice is not null)
         {
-            var existingPdf = _pdfService.GenerateSaleReceipt(sale, config);
+            var existingPdf = _pdfService.GenerateSaleReceipt(sale, config, cashierName);
             return new IssueInvoiceResult(existingInvoice.Id, existingInvoice.Number, existingPdf);
         }
 
@@ -91,7 +94,7 @@ public class IssueInvoiceCommandHandler : IRequestHandler<IssueInvoiceCommand, I
         // Reutiliza el mismo servicio de PDF del recibo de venta (no un formato
         // de factura distinto): la factura es el registro auditable, el PDF es
         // la misma salida impresa que ya existía.
-        var pdf = _pdfService.GenerateSaleReceipt(sale, config);
+        var pdf = _pdfService.GenerateSaleReceipt(sale, config, cashierName);
 
         return new IssueInvoiceResult(invoice.Id, invoice.Number, pdf);
     }
