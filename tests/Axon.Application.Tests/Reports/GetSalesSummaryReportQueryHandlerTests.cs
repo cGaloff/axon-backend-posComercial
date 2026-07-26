@@ -45,6 +45,39 @@ public class GetSalesSummaryReportQueryHandlerTests
         Assert.Equal(1000m, result.TotalRevenue);
     }
 
+    // Bug reportado por frontend: un filtro de un solo día (from == to, ambos a
+    // medianoche) no mostraba ventas, porque el rango resultante medianoche-a-
+    // medianoche cubre 0 segundos.
+    [Fact]
+    public async Task Handle_WithSingleDayFilter_IncludesSalesFromThatDayInColombiaTime()
+    {
+        await using var dbContext = TestDbContextFactory.Create();
+
+        var sale = Sale.Create(Guid.NewGuid(), Guid.NewGuid());
+        var saleItem = SaleItem.Create(sale.Id, Guid.NewGuid(), "Producto", "SKU-001", unitPrice: 1000m, quantity: 1);
+        sale.AddItem(saleItem);
+        sale.AddPayment(SalePayment.Create(sale.Id, PaymentMethod.Cash, 1000m));
+
+        // 24/07/2026 10:00 hora Colombia (UTC-5) == 24/07/2026 15:00 UTC.
+        SetCreatedAt(sale, new DateTime(2026, 7, 24, 15, 0, 0, DateTimeKind.Utc));
+
+        dbContext.Sales.Add(sale);
+        await dbContext.SaveChangesAsync();
+
+        var handler = new GetSalesSummaryReportQueryHandler(dbContext);
+
+        // El caller filtra "el día 24/07/2026" enviando la misma fecha en from y
+        // to, como hace un selector de un solo día.
+        var query = new GetSalesSummaryReportQuery(
+            FromDate: new DateTime(2026, 7, 24, 0, 0, 0),
+            ToDate: new DateTime(2026, 7, 24, 0, 0, 0));
+
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        Assert.Equal(1, result.TotalTransactions);
+        Assert.Equal(1000m, result.TotalRevenue);
+    }
+
     private static void SetCreatedAt(Sale sale, DateTime createdAtUtc)
     {
         typeof(Sale).GetProperty(nameof(Sale.CreatedAt), BindingFlags.Public | BindingFlags.Instance)!

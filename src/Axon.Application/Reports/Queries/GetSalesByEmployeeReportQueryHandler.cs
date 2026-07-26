@@ -16,10 +16,12 @@ public class GetSalesByEmployeeReportQueryHandler : IRequestHandler<GetSalesByEm
 
     public async Task<SalesByEmployeeReportDto> Handle(GetSalesByEmployeeReportQuery request, CancellationToken cancellationToken)
     {
-        // FromDate/ToDate llegan como límites del día calendario en hora Colombia;
-        // mismo criterio que el resto de reportes (ver GetSalesSummaryReportQueryHandler).
-        var fromUtc = ColombiaTime.ToUtc(request.FromDate);
-        var toUtc = ColombiaTime.ToUtc(request.ToDate);
+        // FromDate/ToDate representan el día calendario en hora Colombia; mismo
+        // criterio que el resto de reportes (ver GetSalesSummaryReportQueryHandler):
+        // se truncan a la fecha y se expanden al día completo para que un filtro
+        // de un solo día (from == to) no cubra un rango de 0 segundos.
+        var fromUtc = ColombiaTime.ToUtc(request.FromDate.Date);
+        var toUtc = ColombiaTime.ToUtc(request.ToDate.Date.AddDays(1).AddTicks(-1));
 
         // Solo ventas completadas cuentan como venta real del empleado; anuladas/
         // devueltas no representan una venta efectiva en su desempeño.

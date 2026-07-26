@@ -64,6 +64,35 @@ public class GetSalesByEmployeeReportQueryHandlerTests
         Assert.Equal(500m, betoSummary.TotalRevenue);
     }
 
+    // Bug reportado por frontend: un filtro de un solo día (from == to, ambos a
+    // medianoche) no mostraba ventas, porque el rango resultante medianoche-a-
+    // medianoche cubre 0 segundos.
+    [Fact]
+    public async Task Handle_WithSingleDayFilter_IncludesSalesFromThatDayInColombiaTime()
+    {
+        await using var dbContext = TestDbContextFactory.Create();
+
+        var cashier = User.Create("Ana Cajera", "ana@test.com", "hash", Guid.NewGuid());
+        dbContext.Users.Add(cashier);
+
+        // 24/07/2026 10:00 hora Colombia (UTC-5) == 24/07/2026 15:00 UTC.
+        var sale = CreateCompletedSale(cashier.Id, 1000m, new DateTime(2026, 7, 24, 15, 0, 0, DateTimeKind.Utc));
+        dbContext.Sales.Add(sale);
+        await dbContext.SaveChangesAsync();
+
+        var handler = new GetSalesByEmployeeReportQueryHandler(dbContext);
+
+        var query = new GetSalesByEmployeeReportQuery(
+            FromDate: new DateTime(2026, 7, 24, 0, 0, 0),
+            ToDate: new DateTime(2026, 7, 24, 0, 0, 0));
+
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        var summary = Assert.Single(result.Employees);
+        Assert.Equal(cashier.Id, summary.UserId);
+        Assert.Equal(1000m, summary.TotalRevenue);
+    }
+
     [Fact]
     public async Task Handle_WithNoSalesInRange_ReturnsEmptyListWithoutThrowing()
     {
