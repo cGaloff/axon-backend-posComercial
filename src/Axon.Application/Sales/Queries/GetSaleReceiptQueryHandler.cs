@@ -36,8 +36,8 @@ public class GetSaleReceiptQueryHandler : IRequestHandler<GetSaleReceiptQuery, b
         var config = await _tenantConfigRepository.GetAsync()
             ?? throw new DomainException("Configuración del tenant no encontrada");
 
-        var receiptContext = await SaleReceiptContext.ResolveAsync(_dbContext, sale, cancellationToken);
+        var cashierName = await SaleReceiptContext.ResolveCashierNameAsync(_dbContext, sale, cancellationToken);
 
-        return _pdfService.GenerateSaleReceipt(sale, config, receiptContext.CashierName, receiptContext.CashRegisterName);
+        return _pdfService.GenerateSaleReceipt(sale, config, cashierName);
     }
 }

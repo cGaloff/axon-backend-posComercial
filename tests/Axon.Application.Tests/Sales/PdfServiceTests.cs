@@ -16,7 +16,6 @@ public class PdfServiceTests
     }
 
     private const string CashierName = "Ana Martínez";
-    private const string CashRegisterName = "Caja 01";
 
     private static void AssertValidPdf(byte[] pdfBytes)
     {
@@ -40,7 +39,7 @@ public class PdfServiceTests
 
         var config = TenantConfigEntity.Create("Moda Urbana");
 
-        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName, CashRegisterName);
+        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName);
 
         AssertValidPdf(pdfBytes);
     }
@@ -57,7 +56,7 @@ public class PdfServiceTests
 
         var config = TenantConfigEntity.Create("Tienda de prueba");
 
-        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName, CashRegisterName);
+        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName);
 
         AssertValidPdf(pdfBytes);
     }
@@ -76,7 +75,7 @@ public class PdfServiceTests
 
         var config = TenantConfigEntity.Create("Tienda de prueba");
 
-        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName, CashRegisterName);
+        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName);
 
         AssertValidPdf(pdfBytes);
     }
@@ -105,7 +104,7 @@ public class PdfServiceTests
 
         var config = TenantConfigEntity.Create("Tienda de prueba");
 
-        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName, CashRegisterName);
+        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName);
 
         AssertValidPdf(pdfBytes);
     }
@@ -122,7 +121,7 @@ public class PdfServiceTests
 
         var config = TenantConfigEntity.Create("Tienda de prueba");
 
-        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName, CashRegisterName);
+        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName);
 
         AssertValidPdf(pdfBytes);
     }
@@ -143,7 +142,7 @@ public class PdfServiceTests
 
         var config = TenantConfigEntity.Create("Tienda de prueba");
 
-        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName, CashRegisterName);
+        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName);
 
         var pdfText = System.Text.Encoding.Latin1.GetString(pdfBytes);
         Assert.DoesNotContain("/Subtype/Image", pdfText.Replace(" ", ""));

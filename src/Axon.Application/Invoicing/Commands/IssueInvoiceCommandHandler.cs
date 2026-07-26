@@ -53,11 +53,11 @@ public class IssueInvoiceCommandHandler : IRequestHandler<IssueInvoiceCommand, I
         var existingInvoice = await _dbContext.Invoices
             .SingleOrDefaultAsync(i => i.SaleId == sale.Id, cancellationToken);
 
-        var receiptContext = await SaleReceiptContext.ResolveAsync(_dbContext, sale, cancellationToken);
+        var cashierName = await SaleReceiptContext.ResolveCashierNameAsync(_dbContext, sale, cancellationToken);
 
         if (existingInvoice is not null)
         {
-            var existingPdf = _pdfService.GenerateSaleReceipt(sale, config, receiptContext.CashierName, receiptContext.CashRegisterName);
+            var existingPdf = _pdfService.GenerateSaleReceipt(sale, config, cashierName);
             return new IssueInvoiceResult(existingInvoice.Id, existingInvoice.Number, existingPdf);
         }
 
@@ -94,7 +94,7 @@ public class IssueInvoiceCommandHandler : IRequestHandler<IssueInvoiceCommand, I
         // Reutiliza el mismo servicio de PDF del recibo de venta (no un formato
         // de factura distinto): la factura es el registro auditable, el PDF es
         // la misma salida impresa que ya existía.
-        var pdf = _pdfService.GenerateSaleReceipt(sale, config, receiptContext.CashierName, receiptContext.CashRegisterName);
+        var pdf = _pdfService.GenerateSaleReceipt(sale, config, cashierName);
 
         return new IssueInvoiceResult(invoice.Id, invoice.Number, pdf);
     }

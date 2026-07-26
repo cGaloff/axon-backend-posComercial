@@ -6,5 +6,5 @@ namespace Axon.Application.Tests.TestSupport;
 
 public class FakePdfService : IPdfService
 {
-    public byte[] GenerateSaleReceipt(Sale sale, TenantConfigEntity config, string cashierName, string cashRegisterName) => Array.Empty<byte>();
+    public byte[] GenerateSaleReceipt(Sale sale, TenantConfigEntity config, string cashierName) => Array.Empty<byte>();
 }

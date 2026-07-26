@@ -28,7 +28,7 @@ public class PdfService : IPdfService
         </svg>
         """;
 
-    public byte[] GenerateSaleReceipt(Sale sale, TenantConfig config, string cashierName, string cashRegisterName)
+    public byte[] GenerateSaleReceipt(Sale sale, TenantConfig config, string cashierName)
     {
         var document = Document.Create(container =>
         {
@@ -41,7 +41,7 @@ public class PdfService : IPdfService
                 page.Content().Column(column =>
                 {
                     column.Item().Element(c => ComposeHeader(c, config));
-                    column.Item().PaddingTop(2, Unit.Millimetre).Element(c => ComposeSaleData(c, sale, cashierName, cashRegisterName));
+                    column.Item().PaddingTop(2, Unit.Millimetre).Element(c => ComposeSaleData(c, sale, cashierName));
                     column.Item().PaddingTop(2, Unit.Millimetre).Element(c => ComposeItemsTable(c, sale));
                     column.Item().PaddingTop(2, Unit.Millimetre).Element(c => ComposeTotals(c, sale));
                     column.Item().PaddingTop(3, Unit.Millimetre).Element(c => ComposeTaxSummaryTable(c, sale));
@@ -126,7 +126,7 @@ public class PdfService : IPdfService
         });
     }
 
-    private static void ComposeSaleData(IContainer container, Sale sale, string cashierName, string cashRegisterName)
+    private static void ComposeSaleData(IContainer container, Sale sale, string cashierName)
     {
         container.Column(column =>
         {
@@ -141,7 +141,6 @@ public class PdfService : IPdfService
 
             column.Item().Text($"Fecha: {localCreatedAt:dd/MM/yyyy}   Hora: {localCreatedAt:HH:mm}");
             column.Item().Text($"Cajero: {cashierName}");
-            column.Item().Text($"Caja: {cashRegisterName}");
             column.Item().Text(!string.IsNullOrWhiteSpace(sale.CustomerName) ? $"Cliente: {sale.CustomerName}" : "Cliente: Consumidor Final");
 
             column.Item().PaddingTop(2, Unit.Millimetre).LineHorizontal(1).LineColor(Colors.Grey.Darken1);

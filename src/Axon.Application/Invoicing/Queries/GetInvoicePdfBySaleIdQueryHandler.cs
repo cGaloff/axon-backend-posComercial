@@ -44,11 +44,11 @@ public class GetInvoicePdfBySaleIdQueryHandler : IRequestHandler<GetInvoicePdfBy
         var config = await _tenantConfigRepository.GetAsync()
             ?? throw new DomainException("Configuración del tenant no encontrada");
 
-        var receiptContext = await SaleReceiptContext.ResolveAsync(_dbContext, sale, cancellationToken);
+        var cashierName = await SaleReceiptContext.ResolveCashierNameAsync(_dbContext, sale, cancellationToken);
 
         // Reutiliza el mismo servicio de PDF ya usado al emitir la factura (ver
         // IssueInvoiceCommandHandler): la venta ya no cambia después de completarse,
         // así que regenerarlo aquí produce el mismo contenido que el original.
-        return _pdfService.GenerateSaleReceipt(sale, config, receiptContext.CashierName, receiptContext.CashRegisterName);
+        return _pdfService.GenerateSaleReceipt(sale, config, cashierName);
     }
 }
