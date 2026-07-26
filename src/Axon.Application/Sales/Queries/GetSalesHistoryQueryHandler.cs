@@ -1,5 +1,6 @@
 using Axon.Application.Common.Models;
 using Axon.Application.Interfaces;
+using Axon.Application.Reports;
 using Axon.Application.Sales.DTOs;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -19,14 +20,20 @@ public class GetSalesHistoryQueryHandler : IRequestHandler<GetSalesHistoryQuery,
     {
         var query = _dbContext.Sales.AsQueryable();
 
+        // From/To representan el día calendario en hora Colombia (no UTC), así
+        // que se truncan a la fecha y se expanden al día completo antes de
+        // convertir a UTC: si no se trunca, un filtro de un solo día (from == to)
+        // cubriría un rango de 0 segundos y no mostraría ninguna venta.
         if (request.From.HasValue)
         {
-            query = query.Where(s => s.CreatedAt >= request.From.Value);
+            var fromDate = ColombiaTime.ToUtc(request.From.Value.Date);
+            query = query.Where(s => s.CreatedAt >= fromDate);
         }
 
         if (request.To.HasValue)
         {
-            query = query.Where(s => s.CreatedAt <= request.To.Value);
+            var toDate = ColombiaTime.ToUtc(request.To.Value.Date.AddDays(1).AddTicks(-1));
+            query = query.Where(s => s.CreatedAt <= toDate);
         }
 
         if (request.Status.HasValue)

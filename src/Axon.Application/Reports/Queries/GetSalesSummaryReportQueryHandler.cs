@@ -16,11 +16,14 @@ public class GetSalesSummaryReportQueryHandler : IRequestHandler<GetSalesSummary
 
     public async Task<SalesSummaryReportDto> Handle(GetSalesSummaryReportQuery request, CancellationToken cancellationToken)
     {
-        // FromDate/ToDate llegan como límites del día calendario en hora Colombia, pero
-        // Sale.CreatedAt se guarda en UTC. Se convierten antes de filtrar para que las
-        // ventas hechas de noche (ya en el día UTC siguiente) no desaparezcan del reporte.
-        var fromUtc = ColombiaTime.ToUtc(request.FromDate);
-        var toUtc = ColombiaTime.ToUtc(request.ToDate);
+        // FromDate/ToDate representan el día calendario en hora Colombia, pero
+        // Sale.CreatedAt se guarda en UTC. Se truncan a la fecha y se expanden al
+        // día completo antes de convertir a UTC: si no se trunca, un filtro de un
+        // solo día (from == to) cubriría un rango de 0 segundos, y sin la
+        // conversión de zona horaria las ventas hechas de noche (ya en el día UTC
+        // siguiente) desaparecerían del reporte.
+        var fromUtc = ColombiaTime.ToUtc(request.FromDate.Date);
+        var toUtc = ColombiaTime.ToUtc(request.ToDate.Date.AddDays(1).AddTicks(-1));
 
         // Solo ventas completadas cuentan como ingreso real: las anuladas/devueltas
         // no representan dinero efectivamente ganado en el período.

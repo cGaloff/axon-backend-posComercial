@@ -81,6 +81,32 @@ public class InventoryController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, ApiResponse<Guid>.Ok(id, "Producto creado exitosamente"));
     }
 
+    // Carga masiva: el frontend procesa el Excel/CSV y envía una fila por
+    // producto ya mapeada a CreateProductRequest (mismos campos, misma
+    // validación que la creación individual, solo que en lote).
+    [HttpPost("products/bulk")]
+    [RequirePermission("inventory:write")]
+    public async Task<IActionResult> BulkCreateProducts(BulkCreateProductsRequest request)
+    {
+        var command = new BulkCreateProductsCommand(
+            request.Products.Select(p => new CreateProductCommand(
+                p.Sku,
+                p.Name,
+                p.Description,
+                p.Price,
+                p.Cost,
+                p.MinStock,
+                p.CategoryId,
+                p.UnitId,
+                p.Attributes,
+                p.Taxes?.Select(t => new ProductTaxRequest(t.TaxTypeId, t.Percentage)).ToList()))
+                .ToList());
+
+        var result = await _mediator.Send(command);
+
+        return StatusCode(StatusCodes.Status201Created, ApiResponse<BulkImportResult>.Ok(result, "Carga masiva procesada"));
+    }
+
     [HttpPost("products/{id:guid}/adjust-stock")]
     [RequirePermission("inventory:write")]
     public async Task<IActionResult> AdjustStock(Guid id, AdjustStockRequest request)

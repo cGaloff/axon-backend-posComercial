@@ -1,5 +1,6 @@
 using Axon.Application.Common.Models;
 using Axon.Application.Interfaces;
+using Axon.Application.Reports;
 using Axon.Domain.Entities.CashRegister;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -19,17 +20,19 @@ public class GetCashSessionsHistoryQueryHandler : IRequestHandler<GetCashSession
     {
         var query = _dbContext.CashSessions.AsQueryable();
 
-        // Npgsql exige Kind=Utc para comparar contra columnas timestamptz; el binder
-        // de ASP.NET Core entrega las fechas del query string con Kind=Unspecified.
+        // FromDate/ToDate representan el día calendario en hora Colombia (no UTC),
+        // así que se truncan a la fecha y se expanden al día completo antes de
+        // convertir a UTC: si no se trunca, un filtro de un solo día (from == to)
+        // cubriría un rango de 0 segundos y no mostraría ninguna sesión.
         if (request.FromDate.HasValue)
         {
-            var fromDate = DateTime.SpecifyKind(request.FromDate.Value, DateTimeKind.Utc);
+            var fromDate = ColombiaTime.ToUtc(request.FromDate.Value.Date);
             query = query.Where(s => s.OpenedAt >= fromDate);
         }
 
         if (request.ToDate.HasValue)
         {
-            var toDate = DateTime.SpecifyKind(request.ToDate.Value, DateTimeKind.Utc);
+            var toDate = ColombiaTime.ToUtc(request.ToDate.Value.Date.AddDays(1).AddTicks(-1));
             query = query.Where(s => s.OpenedAt <= toDate);
         }
 

@@ -17,10 +17,12 @@ public class GetCashFlowReportQueryHandler : IRequestHandler<GetCashFlowReportQu
 
     public async Task<CashFlowReportDto> Handle(GetCashFlowReportQuery request, CancellationToken cancellationToken)
     {
-        // Npgsql exige Kind=Utc para comparar contra columnas timestamptz; el binder
-        // de ASP.NET Core entrega las fechas del query string con Kind=Unspecified.
-        var fromDate = DateTime.SpecifyKind(request.FromDate, DateTimeKind.Utc);
-        var toDate = DateTime.SpecifyKind(request.ToDate, DateTimeKind.Utc);
+        // FromDate/ToDate representan el día calendario en hora Colombia (no UTC),
+        // así que se truncan a la fecha y se expanden al día completo antes de
+        // convertir a UTC: si no se trunca, un filtro de un solo día (from == to)
+        // cubriría un rango de 0 segundos y no mostraría ningún movimiento.
+        var fromDate = ColombiaTime.ToUtc(request.FromDate.Date);
+        var toDate = ColombiaTime.ToUtc(request.ToDate.Date.AddDays(1).AddTicks(-1));
 
         var movements = await _dbContext.CashMovements
             .Where(m => m.CreatedAt >= fromDate && m.CreatedAt <= toDate)
