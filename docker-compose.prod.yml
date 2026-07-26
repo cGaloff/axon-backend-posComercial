@@ -1,0 +1,57 @@
+# Compose de PRODUCCIÓN.
+# - Entorno Production: Swagger desactivado.
+# - Postgres SIN puerto expuesto (solo accesible dentro de la red de Docker).
+# - API expuesta solo en 127.0.0.1: Nginx (en el host) hace el proxy + TLS.
+# - Toda la configuración sensible viene de .env (ver .env.prod.example).
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+#
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: axon_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - axon_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: axon_api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__MasterDb: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      Jwt__Key: ${JWT_KEY:?define JWT_KEY en .env (min 32 chars)}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+      Jwt__ExpiresInMinutes: ${JWT_EXPIRES_MINUTES}
+      Jwt__RefreshTokenExpiresInDays: ${JWT_REFRESH_DAYS}
+      Webhooks__PaymentSecret: ${WEBHOOK_PAYMENT_SECRET:?define WEBHOOK_PAYMENT_SECRET en .env}
+      Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:?define CORS_ALLOWED_ORIGINS en .env (dominios del frontend)}
+      Email__SmtpHost: ${EMAIL_SMTP_HOST}
+      Email__SmtpPort: ${EMAIL_SMTP_PORT}
+      Email__FromAddress: ${EMAIL_FROM_ADDRESS}
+      Email__FromName: ${EMAIL_FROM_NAME}
+      Email__Username: ${EMAIL_USERNAME}
+      Email__Password: ${EMAIL_PASSWORD}
+    ports:
+      # Solo localhost del host; Nginx hace el proxy hacia aquí. No expuesto a internet.
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  axon_postgres_data:
