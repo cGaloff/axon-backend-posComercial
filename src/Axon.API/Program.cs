@@ -13,6 +13,7 @@ using Axon.Infrastructure.Services;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -148,12 +149,31 @@ builder.Services.AddValidatorsFromAssembly(applicationAssembly);
 
 var app = builder.Build();
 
+// Detrás de Nginx (u otro proxy) que termina TLS: respeta X-Forwarded-Proto/For
+// para que el scheme/IP real lleguen a la app (necesario para HttpsRedirection y
+// para no romper el flujo HTTPS). Se limpian las redes/proxies conocidos porque el
+// proxy llega por la red interna de Docker, no desde loopback.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
+
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+// Aplica las migraciones pendientes de la base master al arrancar.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
 }
 
 app.UseHttpsRedirection();
@@ -173,12 +193,14 @@ app.MapControllers();
 app.Run();
 
 // Orden del pipeline:
-// 1. ExceptionHandlingMiddleware  -> captura cualquier excepción de las etapas siguientes
-// 2. Swagger / SwaggerUI          -> solo en Development
-// 3. HttpsRedirection
-// 4. Cors                        -> antes de TenantResolutionMiddleware: el preflight
+// 1. ForwardedHeaders             -> scheme/IP real desde el reverse proxy
+// 2. ExceptionHandlingMiddleware  -> captura cualquier excepción de las etapas siguientes
+// 3. Swagger / SwaggerUI          -> solo en Development
+// 4. Migración automática de AppDbContext (master) al arrancar
+// 5. HttpsRedirection
+// 6. Cors                        -> antes de TenantResolutionMiddleware: el preflight
 //                                    (OPTIONS) no manda X-Tenant-Slug
-// 5. TenantResolutionMiddleware   -> resuelve el tenant antes de auth/negocio
-// 6. Authentication
-// 7. Authorization
-// 8. MapControllers
+// 7. TenantResolutionMiddleware   -> resuelve el tenant antes de auth/negocio
+// 8. Authentication
+// 9. Authorization
+// 10. MapControllers
