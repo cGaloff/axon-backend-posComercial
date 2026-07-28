@@ -27,6 +27,7 @@ public class GetTenantConfigQueryHandler : IRequestHandler<GetTenantConfigQuery,
             config.Email,
             config.Website,
             config.LogoUrl,
-            config.IsResponsableIva);
+            config.IsResponsableIva,
+            config.MermaApprovalThreshold);
     }
 }

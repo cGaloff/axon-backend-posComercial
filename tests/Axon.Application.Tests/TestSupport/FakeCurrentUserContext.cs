@@ -14,6 +14,8 @@ public class FakeCurrentUserContext : ICurrentUserContext
 
     public IEnumerable<string> Permissions { get; set; } = new List<string>();
 
+    public decimal? MaxDiscountPercentage { get; set; }
+
     public bool HasPermission(string permission) => Permissions.Contains(permission);
 
     public bool IsInRole(string role) => string.Equals(Role, role, StringComparison.OrdinalIgnoreCase);

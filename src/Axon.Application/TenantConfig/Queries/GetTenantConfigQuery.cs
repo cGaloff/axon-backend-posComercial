@@ -13,4 +13,5 @@ public record TenantConfigDto(
     string? Email,
     string? Website,
     string? LogoUrl,
-    bool IsResponsableIva);
+    bool IsResponsableIva,
+    decimal MermaApprovalThreshold);

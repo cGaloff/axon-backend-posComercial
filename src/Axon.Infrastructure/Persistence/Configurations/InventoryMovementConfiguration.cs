@@ -20,6 +20,15 @@ public class InventoryMovementConfiguration : IEntityTypeConfiguration<Inventory
         builder.Property(m => m.Reason)
             .HasMaxLength(500);
 
+        builder.Property(m => m.Status)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasMaxLength(30)
+            .HasDefaultValue(InventoryMovementStatus.Applied);
+
+        builder.Property(m => m.RejectionReason)
+            .HasMaxLength(500);
+
         builder.HasOne<Product>()
             .WithMany()
             .HasForeignKey(m => m.ProductId)

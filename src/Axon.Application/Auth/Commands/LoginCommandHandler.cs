@@ -42,18 +42,37 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
 
         if (user is null)
         {
+            // No hay a quién atribuirlo, pero igual queda constancia del intento
+            // (Matriz de Roles y Permisos v2, "seguridad técnica").
+            await RecordAttemptAsync(request.Email, userId: null, success: false, request.IpAddress, cancellationToken);
             throw new DomainException("Credenciales inválidas");
         }
 
         if (!user.IsActive)
         {
+            await RecordAttemptAsync(request.Email, user.Id, success: false, request.IpAddress, cancellationToken);
             throw new DomainException("Usuario inactivo");
+        }
+
+        if (user.IsLockedOut)
+        {
+            await RecordAttemptAsync(request.Email, user.Id, success: false, request.IpAddress, cancellationToken);
+            throw new DomainException(
+                $"Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intente de nuevo después de {user.LockedUntil:HH:mm}.");
         }
 
         if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
         {
+            // Se registra el intento fallido ANTES de lanzar la excepción — si no
+            // se guardara aquí, un atacante podría intentar indefinidamente sin
+            // que el contador avanzara nunca.
+            user.RegisterFailedLoginAttempt();
+            await RecordAttemptAsync(request.Email, user.Id, success: false, request.IpAddress, cancellationToken);
             throw new DomainException("Credenciales inválidas");
         }
+
+        user.RegisterSuccessfulLogin();
+        await RecordAttemptAsync(request.Email, user.Id, success: true, request.IpAddress, cancellationToken);
 
         var result = _jwtTokenService.GenerateToken(user, _tenantContext);
 
@@ -67,5 +86,16 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
         await _unitOfWork.CommitAsync(cancellationToken);
 
         return result;
+    }
+
+    // Guarda el intento Y el estado de bloqueo/contador del usuario (si aplica)
+    // en el mismo commit: ambos deben quedar persistidos aunque el flujo termine
+    // lanzando una excepción justo después.
+    private async Task RecordAttemptAsync(
+        string email, Guid? userId, bool success, string? ipAddress, CancellationToken cancellationToken)
+    {
+        var attempt = LoginAttempt.Create(email, userId, success, ipAddress);
+        _dbContext.LoginAttempts.Add(attempt);
+        await _unitOfWork.CommitAsync(cancellationToken);
     }
 }

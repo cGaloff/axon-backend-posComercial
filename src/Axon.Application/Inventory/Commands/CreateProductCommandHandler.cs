@@ -12,11 +12,14 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserContext _currentUserContext;
 
-    public CreateProductCommandHandler(IApplicationDbContext dbContext, IUnitOfWork unitOfWork)
+    public CreateProductCommandHandler(
+        IApplicationDbContext dbContext, IUnitOfWork unitOfWork, ICurrentUserContext currentUserContext)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
+        _currentUserContext = currentUserContext;
     }
 
     public async Task<Guid> Handle(CreateProductCommand request, CancellationToken cancellationToken)
@@ -61,10 +64,41 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         // Taxes representa el estado completo deseado (a diferencia de Attributes,
         // que solo se toca si viene con datos): una lista nula o vacía deja el
         // producto sin ningún impuesto configurado, de forma explícita.
-        var normalizedTaxes = await NormalizeTaxesAsync(request.Taxes, cancellationToken);
+        var normalizedTaxes = await ProductTaxNormalization.NormalizeAsync(_dbContext, request.Taxes, cancellationToken);
         product.SetTaxes(normalizedTaxes);
 
         _dbContext.Products.Add(product);
+
+        // Deuda técnica: el frontend permitía capturar una cantidad inicial al
+        // crear el producto, pero el backend la ignoraba por completo (Product.Create
+        // siempre arranca en Stock=0), obligando a crear el producto y luego hacer un
+        // ajuste de stock aparte. InitialStock=0 (el default) no requiere bodega
+        // configurada, igual que antes.
+        if (request.InitialStock > 0)
+        {
+            var warehouse = await _dbContext.Warehouses.SingleOrDefaultAsync(w => w.IsDefault, cancellationToken)
+                ?? throw new DomainException("No hay una bodega por defecto configurada");
+
+            product.AdjustStock(request.InitialStock);
+
+            var movement = InventoryMovement.Create(
+                product.Id,
+                warehouse.Id,
+                InventoryMovementType.InitialStock,
+                request.InitialStock,
+                stockBefore: 0,
+                "Stock inicial al crear el producto",
+                _currentUserContext.UserId);
+
+            _dbContext.InventoryMovements.Add(movement);
+
+            if (product.Stock <= product.MinStock)
+            {
+                var alert = StockAlert.Create(product.Id, warehouse.Id, product.Stock, product.MinStock);
+                _dbContext.StockAlerts.Add(alert);
+            }
+        }
+
         await _unitOfWork.CommitAsync(cancellationToken);
 
         return product.Id;
@@ -96,30 +130,4 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         return normalized;
     }
 
-    private async Task<List<(Guid TaxTypeId, decimal Percentage)>> NormalizeTaxesAsync(
-        List<ProductTaxRequest>? taxes,
-        CancellationToken cancellationToken)
-    {
-        var normalized = new List<(Guid TaxTypeId, decimal Percentage)>();
-
-        if (taxes is null)
-        {
-            return normalized;
-        }
-
-        foreach (var tax in taxes)
-        {
-            var taxTypeExists = await _dbContext.TaxTypes.AnyAsync(
-                t => t.Id == tax.TaxTypeId && t.IsActive, cancellationToken);
-
-            if (!taxTypeExists)
-            {
-                throw new DomainException($"El tipo de impuesto '{tax.TaxTypeId}' no existe o está inactivo");
-            }
-
-            normalized.Add((tax.TaxTypeId, tax.Percentage));
-        }
-
-        return normalized;
-    }
 }

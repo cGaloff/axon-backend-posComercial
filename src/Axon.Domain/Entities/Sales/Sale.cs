@@ -31,6 +31,13 @@ public class Sale
     public DateTime? ReturnedAt { get; private set; }
     public Guid? ReturnedBy { get; private set; }
 
+    // Quién PIDIÓ la anulación/devolución es VoidedBy/ReturnedBy (la sesión activa,
+    // p. ej. un Cajero); AuthorizedBy es el Administrador/Propietario cuyo PIN la
+    // habilitó, cuando quien la pide no tiene el permiso por sí mismo. Null si quien
+    // la pidió ya tenía el permiso directamente (no hizo falta autorización de nadie
+    // más) — Matriz de Roles y Permisos v2, rol Cajero.
+    public Guid? AuthorizedBy { get; private set; }
+
     public IReadOnlyList<SaleItem> Items => _items;
     public IReadOnlyList<SalePayment> Payments => _payments;
 
@@ -71,20 +78,15 @@ public class Sale
         Total = _items.Sum(i => i.Subtotal);
     }
 
-    // Tarjeta/transferencia requieren confirmación externa (ver ConfirmSalePaymentCommand
-    // y PaymentWebhookController); si CUALQUIER pago de la venta usa uno de esos
-    // métodos, la venta entera queda pendiente hasta que se confirme. Se recalcula
-    // en cada llamada para no depender del orden en que se agregan los pagos.
+    // Venta presencial: Tarjeta/Transferencia se cobran en el momento (datáfono propio
+    // del negocio o transferencia verificada a simple vista por el cajero), igual que
+    // Efectivo y Crédito — no hay pasarela de pago externa integrada que confirme el
+    // cobro de forma asíncrona, así que ningún método de pago deja la venta pendiente.
+    // PendingPayment/ConfirmSalePaymentCommand quedan disponibles para una futura
+    // integración real con una pasarela de pagos.
     public void AddPayment(SalePayment payment)
     {
         _payments.Add(payment);
-
-        if (Status is SaleStatus.Completed or SaleStatus.PendingPayment)
-        {
-            Status = _payments.Any(p => p.Method is PaymentMethod.Card or PaymentMethod.Transfer)
-                ? SaleStatus.PendingPayment
-                : SaleStatus.Completed;
-        }
     }
 
     // Debe llamarse después de agregar todos los ítems y todos los pagos: valida
@@ -110,7 +112,7 @@ public class Sale
         Status = SaleStatus.Completed;
     }
 
-    public void Void(Guid voidedBy, string reason)
+    public void Void(Guid voidedBy, string reason, Guid? authorizedBy = null)
     {
         if (Status == SaleStatus.Voided)
         {
@@ -126,9 +128,10 @@ public class Sale
         VoidedAt = DateTime.UtcNow;
         VoidedBy = voidedBy;
         VoidReason = reason;
+        AuthorizedBy = authorizedBy;
     }
 
-    public void MarkAsReturned(Guid returnedBy)
+    public void MarkAsReturned(Guid returnedBy, Guid? authorizedBy = null)
     {
         if (Status != SaleStatus.Completed)
         {
@@ -138,5 +141,6 @@ public class Sale
         Status = SaleStatus.Returned;
         ReturnedAt = DateTime.UtcNow;
         ReturnedBy = returnedBy;
+        AuthorizedBy = authorizedBy;
     }
 }

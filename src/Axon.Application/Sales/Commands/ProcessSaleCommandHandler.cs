@@ -106,6 +106,23 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
         {
             var product = productsById[item.ProductId];
 
+            // Tope de descuento por rol (Matriz de Roles y Permisos v2, regla
+            // transversal C): null = sin tope (Administrador/Propietario). Se valida
+            // aquí, en Application, porque depende de QUIÉN hace la venta, no es un
+            // invariante propio de SaleItem (el mismo descuento puede ser válido para
+            // un Administrador e inválido para un Cajero).
+            if (_currentUserContext.MaxDiscountPercentage.HasValue && item.Discount > 0)
+            {
+                var grossSubtotal = product.Price * item.Quantity;
+                var discountPercentage = grossSubtotal > 0 ? item.Discount / grossSubtotal * 100 : 0m;
+
+                if (discountPercentage > _currentUserContext.MaxDiscountPercentage.Value)
+                {
+                    throw new DomainException(
+                        $"El descuento de {discountPercentage:0.##}% en '{product.Name}' supera el tope permitido para su rol ({_currentUserContext.MaxDiscountPercentage.Value:0.##}%). Se requiere autorización de un rol con mayor tope.");
+                }
+            }
+
             // Snapshot de los impuestos vigentes del producto (0 a N), tal como están
             // configurados en este instante. TenantConfig.IsResponsableIva ya no filtra
             // impuestos automáticamente aquí: en el modelo flexible, si un tenant no
@@ -179,12 +196,8 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
 
         await _unitOfWork.CommitAsync(cancellationToken);
 
-        // La factura (PDF + registro Invoice) solo se emite cuando la venta queda
-        // Completed de inmediato (efectivo/fiado). Si algún pago requiere
-        // confirmación externa (tarjeta/transferencia), la venta queda
-        // PendingPayment y la factura se emite después, desde
-        // ConfirmSalePaymentCommandHandler — mismo evento ("pago exitoso"), dos
-        // puntos de entrada posibles.
+        // Toda venta presencial queda Completed de inmediato sin importar el método de
+        // pago (ver Sale.AddPayment), así que la factura siempre se emite aquí mismo.
         byte[]? pdf = null;
         long? invoiceNumber = null;
 

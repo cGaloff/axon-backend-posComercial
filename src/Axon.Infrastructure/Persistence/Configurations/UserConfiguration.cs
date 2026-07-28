@@ -26,6 +26,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PasswordHash)
             .IsRequired();
 
+        builder.Property(u => u.PinHash)
+            .HasMaxLength(500);
+
+        builder.Property(u => u.FailedLoginAttempts)
+            .HasDefaultValue(0);
+
         builder.HasOne(u => u.Role)
             .WithMany()
             .HasForeignKey(u => u.RoleId)

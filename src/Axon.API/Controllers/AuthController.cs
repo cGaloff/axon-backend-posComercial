@@ -22,7 +22,11 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        var command = new LoginCommand(request.Email, request.Password, request.TenantSlug);
+        // Detrás de Nginx con ForwardedHeaders ya configurado (ver Program.cs),
+        // RemoteIpAddress ya refleja la IP real del cliente, no la del proxy.
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        var command = new LoginCommand(request.Email, request.Password, request.TenantSlug, ipAddress);
         var result = await _mediator.Send(command);
 
         return Ok(ApiResponse<LoginResult>.Ok(result, "Login exitoso"));

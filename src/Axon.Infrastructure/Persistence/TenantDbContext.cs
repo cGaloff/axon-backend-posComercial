@@ -74,6 +74,10 @@ public class TenantDbContext : DbContext, IApplicationDbContext
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    public DbSet<LoginAttempt> LoginAttempts => Set<LoginAttempt>();
+
     public async Task<long> GetNextInvoiceNumberAsync(CancellationToken cancellationToken)
     {
         if (Database.IsRelational())
@@ -128,5 +132,7 @@ public class TenantDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new SupplierPaymentConfiguration());
         modelBuilder.ApplyConfiguration(new ProductSupplierConfiguration());
         modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
+        modelBuilder.ApplyConfiguration(new AuditLogConfiguration());
+        modelBuilder.ApplyConfiguration(new LoginAttemptConfiguration());
     }
 }

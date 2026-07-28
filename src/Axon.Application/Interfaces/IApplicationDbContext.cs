@@ -35,6 +35,8 @@ public interface IApplicationDbContext
     DbSet<SupplierPayment> SupplierPayments { get; }
     DbSet<ProductSupplier> ProductSuppliers { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<AuditLog> AuditLogs { get; }
+    DbSet<LoginAttempt> LoginAttempts { get; }
 
     // Consecutivo de factura, atómico y aislado por tenant: en Postgres usa la
     // secuencia invoice_number_seq del schema del tenant (nextval() no tiene

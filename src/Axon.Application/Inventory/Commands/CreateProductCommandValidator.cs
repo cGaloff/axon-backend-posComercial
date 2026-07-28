@@ -23,6 +23,9 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
         RuleFor(x => x.MinStock)
             .GreaterThanOrEqualTo(0);
 
+        RuleFor(x => x.InitialStock)
+            .GreaterThanOrEqualTo(0);
+
         RuleFor(x => x.CategoryId)
             .NotEmpty();
 

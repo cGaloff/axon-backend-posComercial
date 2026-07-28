@@ -24,8 +24,8 @@ public class CreatePurchaseOrderCommandHandlerTests
             "Distribuidora ACME", SupplierDocumentType.NIT, "900123456-7",
             "Juan Perez", "3001234567", "juan@acme.com");
 
-        var iva = TaxType.Create("IVA", "IVA");
-        var ica = TaxType.Create("ICA", "ICA");
+        var iva = TaxType.Create(TaxCode.Iva, "IVA", "Impuesto sobre las ventas");
+        var ica = TaxType.Create(TaxCode.Ica, "ICA", "Impuesto de timbre departamental");
 
         // 120 unidades a $999.99 (más de 2 dígitos en cantidad y costo).
         var product = Product.Create("SKU-001", "Producto con impuestos", price: 2000m, cost: 500m, minStock: 0, categoryId: category.Id, unitId: unit.Id);

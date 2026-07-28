@@ -74,7 +74,8 @@ public class InventoryController : ControllerBase
             request.CategoryId,
             request.UnitId,
             request.Attributes,
-            request.Taxes?.Select(t => new ProductTaxRequest(t.TaxTypeId, t.Percentage)).ToList());
+            request.Taxes?.Select(t => new ProductTaxRequest(t.TaxTypeId, t.Percentage)).ToList(),
+            request.InitialStock);
 
         var id = await _mediator.Send(command);
 
@@ -99,7 +100,8 @@ public class InventoryController : ControllerBase
                 p.CategoryId,
                 p.UnitId,
                 p.Attributes,
-                p.Taxes?.Select(t => new ProductTaxRequest(t.TaxTypeId, t.Percentage)).ToList()))
+                p.Taxes?.Select(t => new ProductTaxRequest(t.TaxTypeId, t.Percentage)).ToList(),
+                p.InitialStock))
                 .ToList());
 
         var result = await _mediator.Send(command);
@@ -116,6 +118,44 @@ public class InventoryController : ControllerBase
         await _mediator.Send(command);
 
         return Ok(ApiResponse<string>.Ok("ok", "Stock ajustado exitosamente"));
+    }
+
+    // inventory:approve_movements (no inventory:write): el Bodeguero no puede
+    // aprobar sus propias mermas (Matriz de Roles y Permisos v2, regla B).
+    [HttpGet("stock-movements/pending")]
+    [RequirePermission("inventory:approve_movements")]
+    public async Task<IActionResult> GetPendingStockMovements()
+    {
+        var result = await _mediator.Send(new GetPendingInventoryMovementsQuery());
+
+        return Ok(ApiResponse<List<PendingInventoryMovementDto>>.Ok(result));
+    }
+
+    [HttpPost("stock-movements/{id:guid}/approve")]
+    [RequirePermission("inventory:approve_movements")]
+    public async Task<IActionResult> ApproveStockMovement(Guid id)
+    {
+        await _mediator.Send(new ApproveInventoryMovementCommand(id));
+
+        return Ok(ApiResponse<string>.Ok("ok", "Movimiento aprobado exitosamente"));
+    }
+
+    [HttpPost("stock-movements/{id:guid}/reject")]
+    [RequirePermission("inventory:approve_movements")]
+    public async Task<IActionResult> RejectStockMovement(Guid id, RejectInventoryMovementRequest request)
+    {
+        await _mediator.Send(new RejectInventoryMovementCommand(id, request.Reason));
+
+        return Ok(ApiResponse<string>.Ok("ok", "Movimiento rechazado exitosamente"));
+    }
+
+    [HttpPut("merma-approval-threshold")]
+    [RequirePermission("inventory:approve_movements")]
+    public async Task<IActionResult> SetMermaApprovalThreshold(SetMermaApprovalThresholdRequest request)
+    {
+        await _mediator.Send(new SetMermaApprovalThresholdCommand(request.Threshold));
+
+        return Ok(ApiResponse<string>.Ok("ok", "Umbral de aprobación de mermas actualizado exitosamente"));
     }
 
     [HttpGet("products/{id:guid}")]
@@ -239,24 +279,9 @@ public class InventoryController : ControllerBase
         return Ok(ApiResponse<List<TaxTypeDto>>.Ok(result));
     }
 
-    [HttpPost("tax-types")]
-    [RequirePermission("inventory:write")]
-    public async Task<IActionResult> CreateTaxType(CreateTaxTypeRequest request)
-    {
-        var id = await _mediator.Send(new CreateTaxTypeCommand(request.Name, request.Code));
-
-        return StatusCode(StatusCodes.Status201Created, ApiResponse<Guid>.Ok(id, "Impuesto creado exitosamente"));
-    }
-
-    [HttpPut("tax-types/{id:guid}")]
-    [RequirePermission("inventory:write")]
-    public async Task<IActionResult> UpdateTaxType(Guid id, UpdateTaxTypeRequest request)
-    {
-        await _mediator.Send(new UpdateTaxTypeCommand(id, request.Name, request.Code));
-
-        return Ok(ApiResponse<string>.Ok("ok", "Impuesto actualizado exitosamente"));
-    }
-
+    // Sin POST/PUT: el catálogo de impuestos es fijo (8 valores de TaxCode,
+    // ver GetTaxTypesQuery) y se provisiona por seed/migración, no por el
+    // tenant — solo puede desactivar los que no le apliquen a su negocio.
     [HttpDelete("tax-types/{id:guid}")]
     [RequirePermission("inventory:write")]
     public async Task<IActionResult> DeactivateTaxType(Guid id)

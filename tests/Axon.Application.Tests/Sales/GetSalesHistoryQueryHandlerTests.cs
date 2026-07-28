@@ -22,12 +22,15 @@ public class GetSalesHistoryQueryHandlerTests
         invoicedSale.AddItem(invoicedItem);
         invoicedSale.AddPayment(SalePayment.Create(invoicedSale.Id, PaymentMethod.Cash, invoicedSale.Total));
 
-        var pendingSale = Sale.Create(Guid.NewGuid(), Guid.NewGuid());
-        var pendingItem = SaleItem.Create(pendingSale.Id, Guid.NewGuid(), "Producto", "SKU-002", unitPrice: 100m, quantity: 1);
-        pendingSale.AddItem(pendingItem);
-        pendingSale.AddPayment(SalePayment.Create(pendingSale.Id, PaymentMethod.Card, pendingSale.Total));
+        // No se llama a IssueInvoiceCommandHandler para esta venta: se prueba el caso
+        // "todavía no facturada", sin importar el método de pago (todos completan de
+        // inmediato — ver Sale.AddPayment).
+        var uninvoicedSale = Sale.Create(Guid.NewGuid(), Guid.NewGuid());
+        var uninvoicedItem = SaleItem.Create(uninvoicedSale.Id, Guid.NewGuid(), "Producto", "SKU-002", unitPrice: 100m, quantity: 1);
+        uninvoicedSale.AddItem(uninvoicedItem);
+        uninvoicedSale.AddPayment(SalePayment.Create(uninvoicedSale.Id, PaymentMethod.Cash, uninvoicedSale.Total));
 
-        dbContext.Sales.AddRange(invoicedSale, pendingSale);
+        dbContext.Sales.AddRange(invoicedSale, uninvoicedSale);
         await dbContext.SaveChangesAsync();
 
         var issueHandler = new IssueInvoiceCommandHandler(
@@ -40,10 +43,10 @@ public class GetSalesHistoryQueryHandlerTests
         var items = result.Items.ToList();
 
         var invoicedDto = items.Single(s => s.Id == invoicedSale.Id);
-        var pendingDto = items.Single(s => s.Id == pendingSale.Id);
+        var uninvoicedDto = items.Single(s => s.Id == uninvoicedSale.Id);
 
         Assert.Equal(1, invoicedDto.InvoiceNumber);
-        Assert.Null(pendingDto.InvoiceNumber);
+        Assert.Null(uninvoicedDto.InvoiceNumber);
     }
 
     // Bug reportado por frontend: un filtro de un solo día (from == to, ambos a

@@ -13,15 +13,18 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Med
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly ITenantConfigRepository _tenantConfigRepository;
 
     public AdjustStockCommandHandler(
         IApplicationDbContext dbContext,
         IUnitOfWork unitOfWork,
-        ICurrentUserContext currentUserContext)
+        ICurrentUserContext currentUserContext,
+        ITenantConfigRepository tenantConfigRepository)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
         _currentUserContext = currentUserContext;
+        _tenantConfigRepository = tenantConfigRepository;
     }
 
     public async Task<MediatRUnit> Handle(AdjustStockCommand request, CancellationToken cancellationToken)
@@ -42,7 +45,25 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Med
 
         var stockBefore = product.Stock;
 
-        product.AdjustStock(request.Quantity);
+        // Mermas (Loss) cuyo valor supere el umbral configurado quedan pendientes
+        // de aprobación de un Administrador: el stock NO se toca todavía (Matriz
+        // de Roles y Permisos v2, regla transversal B). Cualquier otro tipo de
+        // ajuste se aplica de inmediato, igual que antes.
+        var requiresApproval = false;
+
+        if (request.Type == InventoryMovementType.Loss)
+        {
+            var config = await _tenantConfigRepository.GetAsync()
+                ?? throw new DomainException("Configuración del tenant no encontrada");
+
+            var mermaValue = Math.Abs(request.Quantity) * product.Cost;
+            requiresApproval = mermaValue > config.MermaApprovalThreshold;
+        }
+
+        if (!requiresApproval)
+        {
+            product.AdjustStock(request.Quantity);
+        }
 
         var movement = InventoryMovement.Create(
             product.Id,
@@ -51,11 +72,12 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Med
             request.Quantity,
             stockBefore,
             request.Reason,
-            _currentUserContext.UserId);
+            _currentUserContext.UserId,
+            requiresApproval);
 
         _dbContext.InventoryMovements.Add(movement);
 
-        if (product.Stock <= product.MinStock)
+        if (!requiresApproval && product.Stock <= product.MinStock)
         {
             var alert = StockAlert.Create(product.Id, warehouse.Id, product.Stock, product.MinStock);
             _dbContext.StockAlerts.Add(alert);

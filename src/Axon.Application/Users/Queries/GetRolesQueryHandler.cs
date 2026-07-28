@@ -26,6 +26,7 @@ public class GetRolesQueryHandler : IRequestHandler<GetRolesQuery, List<RoleDto>
                 r.Name,
                 r.Description,
                 r.IsSystem,
+                r.MaxDiscountPercentage,
                 r.Permissions.Select(p => p.Key).OrderBy(k => k).ToList()))
             .ToList();
     }

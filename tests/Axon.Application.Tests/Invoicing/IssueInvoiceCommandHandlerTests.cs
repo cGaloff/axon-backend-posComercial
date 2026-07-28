@@ -129,8 +129,12 @@ public class IssueInvoiceCommandHandlerTests
         Assert.Equal(1, resultB.Number);
     }
 
+    // Tarjeta/Transferencia ya no dejan la venta pendiente (ver Sale.AddPayment):
+    // se cobran en el momento, igual que Efectivo/Crédito. El único estado real y
+    // alcanzable distinto de Completed en este punto es Voided/Returned, así que
+    // el guard clause de IssueInvoiceCommandHandler se prueba contra una venta anulada.
     [Fact]
-    public async Task Handle_ForPendingPaymentSale_Throws()
+    public async Task Handle_ForVoidedSale_Throws()
     {
         await using var dbContext = TestDbContextFactory.Create();
         var config = TenantConfigEntity.Create("Negocio de prueba");
@@ -138,7 +142,8 @@ public class IssueInvoiceCommandHandlerTests
         var sale = Sale.Create(Guid.NewGuid(), Guid.NewGuid());
         var item = SaleItem.Create(sale.Id, Guid.NewGuid(), "Producto", "SKU-001", unitPrice: 100m, quantity: 1);
         sale.AddItem(item);
-        sale.AddPayment(SalePayment.Create(sale.Id, PaymentMethod.Card, sale.Total));
+        sale.AddPayment(SalePayment.Create(sale.Id, PaymentMethod.Cash, sale.Total));
+        sale.Void(Guid.NewGuid(), "Anulada por error de digitación");
 
         dbContext.Sales.Add(sale);
         await dbContext.SaveChangesAsync();
@@ -149,15 +154,16 @@ public class IssueInvoiceCommandHandlerTests
         await Assert.ThrowsAsync<DomainException>(() => handler.Handle(new IssueInvoiceCommand(sale.Id), CancellationToken.None));
     }
 
-    // Snapshot de impuestos y pagos en la factura no cambia si el producto o el
-    // catálogo de impuestos se modifican después de emitida.
+    // Snapshot de impuestos y pagos en la factura no cambia si el catálogo de
+    // impuestos se modifica después de emitida (p. ej. el tenant desactiva ese
+    // impuesto porque dejó de aplicarle a su negocio).
     [Fact]
     public async Task Handle_InvoiceSnapshotUnaffectedByLaterTaxTypeChanges()
     {
         await using var dbContext = TestDbContextFactory.Create();
         var config = TenantConfigEntity.Create("Negocio de prueba");
 
-        var taxType = TaxType.Create("IVA", "IVA");
+        var taxType = TaxType.Create(TaxCode.Iva, "IVA", "Impuesto sobre las ventas");
         dbContext.TaxTypes.Add(taxType);
 
         var sale = CreateCompletedSaleWithTax(taxType.Id, "IVA");
@@ -170,7 +176,7 @@ public class IssueInvoiceCommandHandlerTests
         var result = await handler.Handle(new IssueInvoiceCommand(sale.Id), CancellationToken.None);
 
         // El catálogo cambia DESPUÉS de emitida la factura.
-        taxType.Update("IVA (renombrado)", "IVA2");
+        taxType.Deactivate();
 
         var invoice = await dbContext.Invoices.FindAsync(result.InvoiceId);
         var tax = Assert.Single(Assert.Single(invoice!.Items).Taxes);

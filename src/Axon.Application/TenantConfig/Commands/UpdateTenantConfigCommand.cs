@@ -1,3 +1,4 @@
+using Axon.Application.Common.Behaviors;
 using MediatR;
 using MediatRUnit = MediatR.Unit;
 
@@ -11,4 +12,8 @@ public record UpdateTenantConfigCommand(
     string? Email,
     string? Website,
     string? LogoUrl,
-    bool IsResponsableIva) : IRequest<MediatRUnit>;
+    bool IsResponsableIva) : IRequest<MediatRUnit>, IAuditableRequest
+{
+    public string AuditAction => "TenantConfig.Update";
+    public Guid? AuditEntityId => null;
+}

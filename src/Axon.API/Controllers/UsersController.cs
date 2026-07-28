@@ -39,6 +39,19 @@ public class UsersController : ControllerBase
         return Ok(ApiResponse<List<RoleDto>>.Ok(result));
     }
 
+    // roles:write (no users:write): cubre solo el tope de descuento por rol,
+    // no la gestión completa de roles — así el Administrador puede ajustar el
+    // tope del Cajero sin necesitar el resto de permisos de gestión de usuarios
+    // (Matriz de Roles y Permisos v2, regla C).
+    [HttpPut("roles/{id:guid}/discount-cap")]
+    [RequirePermission("roles:write")]
+    public async Task<IActionResult> SetRoleDiscountCap(Guid id, SetRoleDiscountCapRequest request)
+    {
+        await _mediator.Send(new SetRoleDiscountCapCommand(id, request.MaxDiscountPercentage));
+
+        return Ok(ApiResponse<string>.Ok("ok", "Tope de descuento actualizado exitosamente"));
+    }
+
     [HttpPost]
     [RequirePermission("users:write")]
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
@@ -84,5 +97,17 @@ public class UsersController : ControllerBase
         await _mediator.Send(new ChangeUserPasswordCommand(id, request.NewPassword));
 
         return Ok(ApiResponse<string>.Ok("ok", "Contraseña actualizada exitosamente"));
+    }
+
+    // Auto-servicio (sin RequirePermission adicional, solo estar autenticado):
+    // cada usuario configura SU PROPIO PIN, usado para autorizar acciones que
+    // requieren un rol superior sin cerrar la sesión de quien las pide (ver
+    // SupervisorAuthorization / Matriz de Roles y Permisos v2).
+    [HttpPut("me/pin")]
+    public async Task<IActionResult> SetMyPin(SetPinRequest request)
+    {
+        await _mediator.Send(new SetPinCommand(request.Pin));
+
+        return Ok(ApiResponse<string>.Ok("ok", "PIN configurado exitosamente"));
     }
 }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Axon.Domain.Entities.Taxes;
 
 namespace Axon.Application.Inventory.DTOs;
 
@@ -19,4 +20,7 @@ public record ProductDto(
     bool IsActive,
     List<ProductTaxDto> Taxes);
 
-public record ProductTaxDto(Guid TaxTypeId, string TaxTypeName, decimal Percentage);
+// Code es el valor del enum fijo (TaxCode, ver GetTaxTypesQuery) para que el
+// frontend pueda identificar/interpretar el impuesto (p. ej. saber que es IVA
+// para aplicar la restricción de porcentajes fijos al editarlo).
+public record ProductTaxDto(Guid TaxTypeId, TaxCode Code, string TaxTypeName, decimal Percentage);

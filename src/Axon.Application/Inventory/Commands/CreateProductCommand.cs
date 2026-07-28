@@ -14,4 +14,5 @@ public record CreateProductCommand(
     Guid CategoryId,
     Guid UnitId,
     Dictionary<string, string>? Attributes,
-    List<ProductTaxRequest>? Taxes = null) : IRequest<Guid>;
+    List<ProductTaxRequest>? Taxes = null,
+    int InitialStock = 0) : IRequest<Guid>;
