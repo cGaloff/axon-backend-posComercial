@@ -36,5 +36,9 @@ public class TenantConfigConfiguration : IEntityTypeConfiguration<TenantConfig>
 
         builder.Property(c => c.IsResponsableIva)
             .HasDefaultValue(false);
+
+        builder.Property(c => c.MermaApprovalThreshold)
+            .HasColumnType("decimal(12,2)")
+            .HasDefaultValue(0m);
     }
 }

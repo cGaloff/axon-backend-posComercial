@@ -86,6 +86,15 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
 
             taxes.HasKey(t => t.Id);
 
+            // Sin esto, EF marca como "Modified" (no "Added") una fila de ProductTax
+            // nueva que se agrega a la colección owned de un Product YA existente
+            // (p. ej. UpdateProductCommandHandler reemplazando los impuestos vía
+            // Product.SetTaxes) porque el Id ya viene con un valor no-default
+            // (Guid.NewGuid() puesto por ProductTax.Create) y EF no puede distinguir
+            // "es nuevo" de "ya existía" — termina intentando un UPDATE sobre una fila
+            // que nunca se insertó y revienta con DbUpdateConcurrencyException.
+            taxes.Property(t => t.Id).ValueGeneratedNever();
+
             taxes.Property(t => t.Percentage)
                 .HasColumnType("decimal(9,4)");
 

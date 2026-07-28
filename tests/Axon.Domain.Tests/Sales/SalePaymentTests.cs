@@ -45,9 +45,9 @@ public class SalePaymentTests
 
         Assert.Equal(2, sale.Payments.Count);
         Assert.Equal(100m, sale.Payments.Sum(p => p.Amount));
-        // Al incluir un pago con tarjeta, la venta queda pendiente de confirmación
-        // (igual que en el modelo anterior de un solo método de pago).
-        Assert.Equal(SaleStatus.PendingPayment, sale.Status);
+        // Venta presencial: tarjeta se cobra en el datáfono propio del negocio en el
+        // momento, así que la venta completa de inmediato igual que con efectivo.
+        Assert.Equal(SaleStatus.Completed, sale.Status);
     }
 
     [Fact]

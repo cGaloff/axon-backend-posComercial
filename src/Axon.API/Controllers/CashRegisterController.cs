@@ -53,7 +53,7 @@ public class CashRegisterController : ControllerBase
     [RequirePermission("cash_register:write")]
     public async Task<IActionResult> OpenSession(OpenCashSessionRequest request)
     {
-        var command = new OpenCashSessionCommand(request.CashRegisterId, request.InitialAmount);
+        var command = new OpenCashSessionCommand(request.CashRegisterId, request.CashierId, request.InitialAmount);
 
         var result = await _mediator.Send(command);
 

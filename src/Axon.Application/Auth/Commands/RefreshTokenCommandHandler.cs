@@ -52,10 +52,26 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, L
             throw new DomainException("El usuario ya no está activo");
         }
 
+        // Cierre de sesión por inactividad (Matriz de Roles y Permisos v2,
+        // "seguridad técnica"): aunque el refresh token en sí no haya expirado,
+        // si el usuario no generó actividad (login o refresh previo) dentro de
+        // este umbral, se exige un login completo de nuevo en vez de renovar en
+        // silencio una sesión abandonada.
+        var inactivityMinutes = int.TryParse(_configuration["Jwt:InactivityTimeoutMinutes"], out var minutes) ? minutes : 60;
+
+        if (user.LastActivityAt.HasValue
+            && DateTime.UtcNow - user.LastActivityAt.Value > TimeSpan.FromMinutes(inactivityMinutes))
+        {
+            storedToken.Revoke();
+            await _unitOfWork.CommitAsync(cancellationToken);
+            throw new DomainException("La sesión expiró por inactividad. Iniciá sesión de nuevo.");
+        }
+
         // Rotación: el refresh token usado queda inservible aunque no haya expirado,
         // así que si alguien lo intercepta y lo reusa después de un refresh legítimo,
         // ya no le sirve.
         storedToken.Revoke();
+        user.RecordActivity();
 
         var result = _jwtTokenService.GenerateToken(user, _tenantContext);
 

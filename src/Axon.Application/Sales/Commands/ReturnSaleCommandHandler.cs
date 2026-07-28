@@ -16,22 +16,28 @@ public class ReturnSaleCommandHandler : IRequestHandler<ReturnSaleCommand, Media
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly IPasswordHasher _passwordHasher;
     private readonly ILogger<ReturnSaleCommandHandler> _logger;
 
     public ReturnSaleCommandHandler(
         IApplicationDbContext dbContext,
         IUnitOfWork unitOfWork,
         ICurrentUserContext currentUserContext,
+        IPasswordHasher passwordHasher,
         ILogger<ReturnSaleCommandHandler> logger)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
         _currentUserContext = currentUserContext;
+        _passwordHasher = passwordHasher;
         _logger = logger;
     }
 
     public async Task<MediatRUnit> Handle(ReturnSaleCommand request, CancellationToken cancellationToken)
     {
+        var authorizedBy = await SupervisorAuthorization.ResolveAsync(
+            _dbContext, _passwordHasher, _currentUserContext, "sales:void", request.SupervisorPin, cancellationToken);
+
         var returnedBy = _currentUserContext.UserId;
 
         var sale = await _dbContext.Sales
@@ -43,7 +49,7 @@ public class ReturnSaleCommandHandler : IRequestHandler<ReturnSaleCommand, Media
             throw new DomainException("La venta no existe");
         }
 
-        sale.MarkAsReturned(returnedBy);
+        sale.MarkAsReturned(returnedBy, authorizedBy);
 
         var saleReturn = SaleReturn.Create(sale.Id, request.Reason, returnedBy, sale.Total);
         _dbContext.SaleReturns.Add(saleReturn);

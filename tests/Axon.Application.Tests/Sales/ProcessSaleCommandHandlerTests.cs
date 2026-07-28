@@ -158,4 +158,111 @@ public class ProcessSaleCommandHandlerTests
         var reloadedProduct = await dbContext.Products.FindAsync(product.Id);
         Assert.Equal(0, reloadedProduct!.Stock);
     }
+
+    // Tope de descuento por rol (Matriz de Roles y Permisos v2, regla transversal
+    // C): un Cajero con tope de 10% no puede aplicar un descuento del 20%.
+    [Fact]
+    public async Task Handle_WhenDiscountExceedsUsersRoleCap_ThrowsDomainException()
+    {
+        await using var dbContext = TestDbContextFactory.Create();
+
+        var category = Category.Create("Categoria de prueba", "");
+        var unit = Unit.Create("Unidad", "und");
+        var warehouse = Warehouse.Create("Bodega principal", "Bodega por defecto", isDefault: true);
+        var cashRegister = CashRegisterEntity.Create("Caja principal", "Caja por defecto", isDefault: true);
+
+        var product = Product.Create("SKU-DISC-1", "Producto con descuento", 100000m, 50000m, 0, category.Id, unit.Id);
+        product.AdjustStock(10);
+
+        var userId = Guid.NewGuid();
+        var cashSession = CashSessionEntity.Create(cashRegister.Id, userId, initialAmount: 0m);
+        var config = TenantConfigEntity.Create("Negocio de prueba");
+
+        dbContext.Categories.Add(category);
+        dbContext.Units.Add(unit);
+        dbContext.Warehouses.Add(warehouse);
+        dbContext.CashRegisters.Add(cashRegister);
+        dbContext.Products.Add(product);
+        dbContext.CashSessions.Add(cashSession);
+        await dbContext.SaveChangesAsync();
+
+        var issueInvoiceHandler = new IssueInvoiceCommandHandler(
+            dbContext, new FakeUnitOfWork(dbContext), new FakePdfService(), new FakeTenantConfigRepository(config));
+
+        var handler = new ProcessSaleCommandHandler(
+            dbContext,
+            new FakeUnitOfWork(dbContext),
+            new FakeCashSessionRepository(dbContext),
+            new FakeCurrentUserContext { UserId = userId, MaxDiscountPercentage = 10m },
+            new FakeEmailService(),
+            new FakeMediator(issueInvoiceHandler));
+
+        // Descuento del 20% (20.000 sobre un subtotal bruto de 100.000) — supera el tope de 10%.
+        var command = new ProcessSaleCommand(
+            Items: new List<SaleItemRequest> { new(product.Id, Quantity: 1, Discount: 20000m) },
+            Payments: new List<SalePaymentRequest> { new(PaymentMethod.Cash, 80000m, 80000m) },
+            CashRegisterId: cashRegister.Id,
+            CustomerId: null,
+            CustomerName: null,
+            CustomerEmail: null,
+            Notes: null);
+
+        var exception = await Assert.ThrowsAsync<DomainException>(() => handler.Handle(command, CancellationToken.None));
+        Assert.Contains("tope permitido", exception.Message);
+
+        Assert.Empty(dbContext.Sales);
+        var reloadedProduct = await dbContext.Products.FindAsync(product.Id);
+        Assert.Equal(10, reloadedProduct!.Stock);
+    }
+
+    [Fact]
+    public async Task Handle_WhenDiscountIsWithinUsersRoleCap_Succeeds()
+    {
+        await using var dbContext = TestDbContextFactory.Create();
+
+        var category = Category.Create("Categoria de prueba", "");
+        var unit = Unit.Create("Unidad", "und");
+        var warehouse = Warehouse.Create("Bodega principal", "Bodega por defecto", isDefault: true);
+        var cashRegister = CashRegisterEntity.Create("Caja principal", "Caja por defecto", isDefault: true);
+
+        var product = Product.Create("SKU-DISC-2", "Producto con descuento permitido", 100000m, 50000m, 0, category.Id, unit.Id);
+        product.AdjustStock(10);
+
+        var userId = Guid.NewGuid();
+        var cashSession = CashSessionEntity.Create(cashRegister.Id, userId, initialAmount: 0m);
+        var config = TenantConfigEntity.Create("Negocio de prueba");
+
+        dbContext.Categories.Add(category);
+        dbContext.Units.Add(unit);
+        dbContext.Warehouses.Add(warehouse);
+        dbContext.CashRegisters.Add(cashRegister);
+        dbContext.Products.Add(product);
+        dbContext.CashSessions.Add(cashSession);
+        await dbContext.SaveChangesAsync();
+
+        var issueInvoiceHandler = new IssueInvoiceCommandHandler(
+            dbContext, new FakeUnitOfWork(dbContext), new FakePdfService(), new FakeTenantConfigRepository(config));
+
+        var handler = new ProcessSaleCommandHandler(
+            dbContext,
+            new FakeUnitOfWork(dbContext),
+            new FakeCashSessionRepository(dbContext),
+            new FakeCurrentUserContext { UserId = userId, MaxDiscountPercentage = 10m },
+            new FakeEmailService(),
+            new FakeMediator(issueInvoiceHandler));
+
+        // Descuento del 5% (5.000 sobre 100.000) — dentro del tope de 10%.
+        var command = new ProcessSaleCommand(
+            Items: new List<SaleItemRequest> { new(product.Id, Quantity: 1, Discount: 5000m) },
+            Payments: new List<SalePaymentRequest> { new(PaymentMethod.Cash, 95000m, 95000m) },
+            CashRegisterId: cashRegister.Id,
+            CustomerId: null,
+            CustomerName: null,
+            CustomerEmail: null,
+            Notes: null);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        Assert.Equal(95000m, result.Total);
+    }
 }

@@ -29,7 +29,7 @@ public class PdfServiceTests
         var service = new PdfService();
 
         var sale = Sale.Create(Guid.NewGuid(), Guid.NewGuid(), customerName: "Juan Pablo Gómez");
-        var iva = TaxType.Create("IVA", "IVA");
+        var iva = TaxType.Create(TaxCode.Iva, "IVA", "Impuesto sobre las ventas");
         var item = SaleItem.Create(
             sale.Id, Guid.NewGuid(), "Camiseta Básica Hombre", "CAM-001",
             unitPrice: 39900m, quantity: 1, discount: 0,
@@ -86,8 +86,10 @@ public class PdfServiceTests
         var service = new PdfService();
 
         var sale = Sale.Create(Guid.NewGuid(), Guid.NewGuid());
-        var iva = TaxType.Create("IVA", "IVA19");
-        var exento = TaxType.Create("Exento", "EXE");
+        // Exento de IVA es el mismo TaxType "IVA" del catálogo fijo, asignado al
+        // producto con porcentaje 0 — no un tipo de impuesto aparte (ver
+        // TaxType.AllowedIvaPercentages).
+        var iva = TaxType.Create(TaxCode.Iva, "IVA", "Impuesto sobre las ventas");
 
         var taxedItem = SaleItem.Create(
             sale.Id, Guid.NewGuid(), "Producto Gravado", "SKU-001",
@@ -96,7 +98,7 @@ public class PdfServiceTests
         var exemptItem = SaleItem.Create(
             sale.Id, Guid.NewGuid(), "Producto Exento", "SKU-002",
             unitPrice: 50000m, quantity: 1, discount: 0,
-            appliedTaxes: new[] { (exento.Id, "Exento", 0m) });
+            appliedTaxes: new[] { (iva.Id, "IVA", 0m) });
 
         sale.AddItem(taxedItem);
         sale.AddItem(exemptItem);

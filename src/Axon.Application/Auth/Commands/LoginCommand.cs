@@ -2,4 +2,4 @@ using MediatR;
 
 namespace Axon.Application.Auth.Commands;
 
-public record LoginCommand(string Email, string Password, string TenantSlug) : IRequest<LoginResult>;
+public record LoginCommand(string Email, string Password, string TenantSlug, string? IpAddress = null) : IRequest<LoginResult>;

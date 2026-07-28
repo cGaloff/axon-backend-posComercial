@@ -44,13 +44,23 @@ public class SalesController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, ApiResponse<ProcessSaleResult>.Ok(result, "Venta procesada exitosamente"));
     }
 
+    // Sin RequirePermission("sales:void") a propósito: cualquier usuario autenticado
+    // puede intentarlo (p. ej. un Cajero), pero el handler exige sales:void propio O
+    // el PIN de un Administrador/Propietario (SupervisorPin) — ver SupervisorAuthorization.
     [HttpPost("{id:guid}/return")]
-    [RequirePermission("sales:write")]
     public async Task<IActionResult> ReturnSale(Guid id, ReturnSaleRequest request)
     {
-        await _mediator.Send(new ReturnSaleCommand(id, request.Reason));
+        await _mediator.Send(new ReturnSaleCommand(id, request.Reason, request.SupervisorPin));
 
         return Ok(ApiResponse<string>.Ok("ok", "Venta devuelta exitosamente"));
+    }
+
+    [HttpPost("{id:guid}/void")]
+    public async Task<IActionResult> VoidSale(Guid id, VoidSaleRequest request)
+    {
+        await _mediator.Send(new VoidSaleCommand(id, request.Reason, request.SupervisorPin));
+
+        return Ok(ApiResponse<string>.Ok("ok", "Venta anulada exitosamente"));
     }
 
     [HttpGet]

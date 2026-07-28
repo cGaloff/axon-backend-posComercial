@@ -61,6 +61,15 @@ public class GetCashSessionsHistoryQueryHandler : IRequestHandler<GetCashSession
             .Where(r => registerIds.Contains(r.Id))
             .ToDictionaryAsync(r => r.Id, r => r.Name, cancellationToken);
 
+        var userIds = sessions.Select(s => s.OpenedBy)
+            .Concat(sessions.Where(s => s.ClosedBy.HasValue).Select(s => s.ClosedBy!.Value))
+            .Distinct()
+            .ToList();
+
+        var userNames = await _dbContext.Users
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName, cancellationToken);
+
         var movements = await _dbContext.CashMovements
             .Where(m => sessionIds.Contains(m.CashSessionId))
             .ToListAsync(cancellationToken);
@@ -83,6 +92,9 @@ public class GetCashSessionsHistoryQueryHandler : IRequestHandler<GetCashSession
                 s.Id,
                 registerNames.GetValueOrDefault(s.CashRegisterId, string.Empty),
                 s.Status.ToString(),
+                s.OpenedBy,
+                userNames.GetValueOrDefault(s.OpenedBy, "(usuario no encontrado)"),
+                s.ClosedBy.HasValue ? userNames.GetValueOrDefault(s.ClosedBy.Value, "(usuario no encontrado)") : null,
                 s.InitialAmount,
                 SumByType(sessionMovements, CashMovementType.CashSale),
                 SumByType(sessionMovements, CashMovementType.CreditSale),

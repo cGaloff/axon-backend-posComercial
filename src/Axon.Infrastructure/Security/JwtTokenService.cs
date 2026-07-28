@@ -42,6 +42,13 @@ public class JwtTokenService : IJwtTokenService
             new("permissions", string.Join(",", permissions))
         };
 
+        // Ausente = sin tope (Role.MaxDiscountPercentage es null); presente =
+        // el % máximo de descuento que este rol puede aplicar sin autorización.
+        if (user.Role.MaxDiscountPercentage.HasValue)
+        {
+            claims.Add(new Claim("max_discount_percentage", user.Role.MaxDiscountPercentage.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
         var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 

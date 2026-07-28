@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Matriz de Roles y Permisos v2</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #1f2937;
+    margin: 0;
+    padding: 0;
+    background: #f4f5f7;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .page { padding: 6mm 2mm; }
+  h1 {
+    font-size: 26px;
+    color: #1e3a5f;
+    margin: 0 0 4px 0;
+  }
+  .subtitle {
+    color: #6b7280;
+    font-size: 13px;
+    margin: 0 0 4px 0;
+  }
+  .version-tag {
+    display: inline-block;
+    background: #1e3a5f;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 10px;
+    margin-top: 6px;
+  }
+  hr.top-rule {
+    border: none;
+    border-top: 2px solid #1e3a5f;
+    margin: 14px 0 18px 0;
+  }
+  .intro {
+    color: #374151;
+    margin-bottom: 6px;
+  }
+  .changelog {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid #b45309;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 16px 0 26px 0;
+    page-break-inside: avoid;
+  }
+  .changelog h2 {
+    font-size: 15px;
+    color: #b45309;
+    margin: 0 0 8px 0;
+  }
+  .changelog ol {
+    margin: 0;
+    padding-left: 18px;
+  }
+  .changelog li { margin-bottom: 5px; }
+
+  .hierarchy {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 26px;
+    page-break-inside: avoid;
+  }
+  .hierarchy h2 { font-size: 15px; color: #1e3a5f; margin: 0 0 10px 0; }
+  .hierarchy-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .hchip {
+    background: #eef2f7;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-weight: 600;
+    color: #1e3a5f;
+  }
+  .harrow { color: #9ca3af; font-weight: 700; }
+  .hgroup { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .role-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 18px;
+    border-left: 6px solid #999;
+    page-break-inside: avoid;
+  }
+  .role-card.propietario { border-left-color: #7c3aed; }
+  .role-card.administrador { border-left-color: #2563eb; }
+  .role-card.auditor { border-left-color: #d97706; }
+  .role-card.bodeguero { border-left-color: #16a34a; }
+  .role-card.cajero { border-left-color: #dc2626; }
+
+  .role-card h3 {
+    font-size: 16px;
+    color: #1e3a5f;
+    margin: 0 0 4px 0;
+  }
+  .role-desc {
+    color: #6b7280;
+    font-size: 12px;
+    margin: 0 0 10px 0;
+  }
+  .cols {
+    display: flex;
+    gap: 22px;
+  }
+  .col { flex: 1; min-width: 0; }
+  .col h4 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 0 0 6px 0;
+  }
+  .col.perm h4 { color: #15803d; }
+  .col.restr h4 { color: #b91c1c; }
+  ul.plist {
+    margin: 0;
+    padding-left: 16px;
+  }
+  ul.plist li { margin-bottom: 5px; }
+  .tag-fix {
+    display: inline-block;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+  .tag-new {
+    display: inline-block;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+
+  .section-title {
+    font-size: 19px;
+    color: #1e3a5f;
+    margin: 30px 0 6px 0;
+    border-bottom: 2px solid #1e3a5f;
+    padding-bottom: 6px;
+  }
+  .section-sub {
+    color: #6b7280;
+    font-size: 12px;
+    margin: 0 0 16px 0;
+  }
+
+  .rule-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    page-break-inside: avoid;
+  }
+  .rule-card h4 {
+    font-size: 13.5px;
+    color: #1e3a5f;
+    margin: 0 0 6px 0;
+  }
+  .rule-card p { margin: 0 0 6px 0; }
+  .rule-card ul { margin: 6px 0 0 0; padding-left: 18px; }
+  .rule-card li { margin-bottom: 4px; }
+
+  .future-box {
+    background: #f0f4ff;
+    border: 1px dashed #93a5c8;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 10px 0 20px 0;
+    page-break-inside: avoid;
+  }
+  .future-box h4 {
+    font-size: 13.5px;
+    color: #1e3a5f;
+    margin: 0 0 6px 0;
+  }
+
+  .disclaimer {
+    font-size: 11px;
+    color: #9ca3af;
+    font-style: italic;
+    margin-top: 4px;
+  }
+
+  footer {
+    margin-top: 30px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>MATRIZ DE ROLES Y PERMISOS</h1>
+  <p class="subtitle">Estructura de Seguridad y Control de Acceso del Sistema — AXON POS</p>
+  <span class="version-tag">VERSIÓN 2 — CORREGIDA</span>
+  <hr class="top-rule">
+
+  <p class="intro">
+    Este documento reemplaza la versión inicial de la Matriz de Roles y Permisos. Se
+    mantiene la jerarquía y el reparto de responsabilidades ya validado (Propietario &gt;
+    Administrador &gt; Auditor / Bodeguero / Cajero), y se corrigen los puntos de riesgo
+    detectados en la revisión: control sobre la eliminación física de facturas, aprobación
+    de mermas de inventario, límites de descuento, seguridad técnica de acceso y protección
+    de datos personales de clientes.
+  </p>
+
+  <div class="changelog">
+    <h2>Resumen de cambios respecto a la versión anterior</h2>
+    <ol>
+      <li><strong>Eliminación física de facturas:</strong> se retira del Propietario. Ningún rol puede borrar una factura desde la operación normal — solo anularla (ver "Reglas transversales").</li>
+      <li><strong>Contradicción Propietario/Administrador:</strong> resuelta — ambos quedan bajo la misma regla de "anular, no eliminar".</li>
+      <li><strong>Mermas del Bodeguero:</strong> ahora requieren aprobación del Administrador cuando superan un valor configurable (control de doble persona).</li>
+      <li><strong>Descuentos del Cajero:</strong> se define un tope configurable por rol (sugerido: Cajero 10%, Administrador sin tope), en vez de "descuentos permitidos" sin límite explícito.</li>
+      <li><strong>Seguridad técnica:</strong> se agrega como sección nueva — 2FA, cierre de sesión por inactividad, bloqueo por intentos fallidos.</li>
+      <li><strong>Protección de datos personales (Ley 1581 de 2012):</strong> se agrega como sección nueva, aplicable a las exportaciones de reportes del rol Auditor.</li>
+      <li><strong>Rol "Gerente de Sucursal":</strong> documentado como consideración futura para cuando el negocio opere multisucursal — no forma parte todavía de la matriz activa.</li>
+      <li><strong>2FA extendido a todos los roles:</strong> ya no se limita a Propietario y Administrador — Cajero y Bodeguero también manejan valor (dinero e inventario), así que quedan bajo la misma exigencia.</li>
+      <li><strong>Umbral de mermas con valor de partida:</strong> se define un monto sugerido de arranque (en vez de solo decir "configurable"), y una regla explícita de qué pasa si nadie lo configura — para que el sistema no quede accidentalmente sin control alguno desde el día uno.</li>
+    </ol>
+  </div>
+
+  <div class="hierarchy">
+    <h2>Jerarquía de roles</h2>
+    <div class="hierarchy-row">
+      <span class="hchip">Propietario</span>
+      <span class="harrow">&gt;</span>
+      <span class="hchip">Administrador</span>
+      <span class="harrow">&gt;</span>
+      <div class="hgroup">
+        <span class="hchip">Auditor</span>
+        <span class="hchip">Bodeguero</span>
+        <span class="hchip">Cajero</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 1. PROPIETARIO ============ -->
+  <div class="role-card propietario">
+    <h3>1. PROPIETARIO (Super Administrador)</h3>
+    <p class="role-desc">Nivel de jerarquía máximo. Control sobre todos los módulos, reportes y configuraciones del sistema — sujeto a las reglas transversales de auditoría e integridad de facturación.</p>
+    <div class="cols">
+      <div class="col perm">
+        <h4>Permisos asignados</h4>
+        <ul class="plist">
+          <li>Configuración general del sistema (datos de la empresa, resolución DIAN, impuestos).</li>
+          <li>Creación, edición y desactivación de usuarios y roles.</li>
+          <li>Acceso a reportes financieros avanzados (pérdidas y ganancias, rentabilidad, flujo de caja).</li>
+          <li><strong>Anulación</strong> de facturas, gastos y productos <span class="tag-fix">CORREGIDO</span></li>
+          <li>Gestión multicaja y multisucursal (si aplica).</li>
+          <li>Acceso de <strong>consulta</strong> al log/historial de auditoría, para supervisar las acciones de todos los empleados.</li>
+        </ul>
+      </div>
+      <div class="col restr">
+        <h4>Restricciones</h4>
+        <ul class="plist">
+          <li><strong>No puede eliminar (borrar físicamente) facturas</strong> — solo anularlas, igual que el Administrador. El borrado físico solo procede por un procedimiento excepcional y separado, con doble confirmación y participación de soporte técnico. <span class="tag-fix">CORREGIDO</span></li>
+          <li><strong>No puede alterar ni borrar el historial de auditoría</strong> — toda acción del Propietario también queda registrada ahí, sin excepción. <span class="tag-fix">CORREGIDO</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2. ADMINISTRADOR ============ -->
+  <div class="role-card administrador">
+    <h3>2. ADMINISTRADOR</h3>
+    <p class="role-desc">Responsable de la operación diaria del establecimiento. Supervisa el flujo comercial, el personal y el inventario.</p>
+    <div class="cols">
+      <div class="col perm">
+        <h4>Permisos asignados</h4>
+        <ul class="plist">
+          <li>Gestión completa del catálogo de productos, precios y categorías.</li>
+          <li>Supervisión de inventario y <strong>aprobación de mermas</strong> reportadas por el Bodeguero que superen el umbral configurado. <span class="tag-new">NUEVO</span></li>
+          <li>Creación de usuarios de menor rango (Cajero, Bodeguero, Auditor).</li>
+          <li>Acceso a reportes operativos (ventas del día, cierres de caja, productos más vendidos).</li>
+          <li>Gestión de devoluciones, garantías y notas crédito.</li>
+          <li>Apertura, cierre y arqueo de todas las cajas.</li>
+          <li>Define el tope de descuento permitido para el rol Cajero. <span class="tag-new">NUEVO</span></li>
+        </ul>
+      </div>
+      <div class="col restr">
+        <h4>Restricciones</h4>
+        <ul class="plist">
+          <li>No puede eliminar usuarios con rol de "Propietario".</li>
+          <li>No puede alterar la configuración fiscal ni las resoluciones de facturación.</li>
+          <li>No puede eliminar facturas de forma permanente — solo anularlas (misma regla que el Propietario, ya sin contradicción). <span class="tag-fix">CORREGIDO</span></li>
+          <li>No puede borrar ni alterar el historial de auditoría.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3. AUDITOR ============ -->
+  <div class="role-card auditor">
+    <h3>3. AUDITOR (Contable / Supervisor)</h3>
+    <p class="role-desc">Rol de solo lectura para contadores o revisores fiscales. Su objetivo es el análisis de datos sin alterar la información.</p>
+    <div class="cols">
+      <div class="col perm">
+        <h4>Permisos asignados</h4>
+        <ul class="plist">
+          <li>Visualización y exportación de reportes de ventas, compras e impuestos (IVA, Impoconsumo).</li>
+          <li>Revisión de cuadres y cierres de caja (Reportes Z).</li>
+          <li>Consulta de historial de movimientos de inventario (Kardex).</li>
+          <li>Revisión de comprobantes de ingreso y egreso.</li>
+          <li>Lectura del registro de eventos del sistema (auditoría de acciones).</li>
+          <li>Toda exportación de reportes con datos personales de clientes queda sujeta a las reglas de protección de datos (ver "Reglas transversales"). <span class="tag-new">NUEVO</span></li>
+        </ul>
+      </div>
+      <div class="col restr">
+        <h4>Restricciones</h4>
+        <ul class="plist">
+          <li><strong>Rol de solo lectura:</strong> no puede facturar ni realizar cobros.</li>
+          <li>No puede modificar precios, costos, ni existencias de inventario.</li>
+          <li>No puede crear, modificar ni eliminar usuarios.</li>
+          <li>No puede alterar configuraciones del sistema.</li>
+          <li>No puede exportar datos personales de clientes sin que quede registrado en el log de auditoría quién exportó qué y cuándo. <span class="tag-new">NUEVO</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 4. BODEGUERO ============ -->
+  <div class="role-card bodeguero">
+    <h3>4. BODEGUERO (Inventario)</h3>
+    <p class="role-desc">Encargado de la logística, almacenamiento y control físico de la mercancía.</p>
+    <div class="cols">
+      <div class="col perm">
+        <h4>Permisos asignados</h4>
+        <ul class="plist">
+          <li>Recepción de mercancía y registro de facturas de compra/proveedores.</li>
+          <li>Ingreso y salida manual de inventario por mermas, traslados o averías — <strong>las mermas que superen el valor configurado por el Administrador quedan pendientes de su aprobación</strong> antes de aplicarse. <span class="tag-fix">CORREGIDO</span></li>
+          <li>Consulta del catálogo de productos y niveles de stock.</li>
+          <li>Generación e impresión de etiquetas de códigos de barras.</li>
+          <li>Registro de toma física de inventario.</li>
+        </ul>
+      </div>
+      <div class="col restr">
+        <h4>Restricciones</h4>
+        <ul class="plist">
+          <li>No tiene acceso al módulo de Facturación / POS.</li>
+          <li>No puede ver reportes de ingresos, ventas diarias o rentabilidad.</li>
+          <li>No tiene acceso al manejo de efectivo, cajas ni medios de pago.</li>
+          <li>No puede modificar los precios de venta al público.</li>
+          <li><strong>No puede aprobar sus propias mermas</strong> cuando superan el umbral — la aprobación siempre la hace un rol distinto (Administrador o superior). <span class="tag-new">NUEVO</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 5. CAJERO ============ -->
+  <div class="role-card cajero">
+    <h3>5. CAJERO</h3>
+    <p class="role-desc">Personal en punto de pago. Rol enfocado exclusivamente en la atención al cliente y registro de transacciones de venta.</p>
+    <div class="cols">
+      <div class="col perm">
+        <h4>Permisos asignados</h4>
+        <ul class="plist">
+          <li>Apertura y cierre de su turno/caja asignada.</li>
+          <li>Creación de facturas POS, recibos y cotizaciones.</li>
+          <li>Recepción de múltiples medios de pago (efectivo, tarjetas, transferencias).</li>
+          <li>Consulta rápida de precios y existencias de productos.</li>
+          <li>Aplicación de descuentos <strong>dentro del tope configurado para su rol</strong> (sugerido: máx. 10%) o registro de clientes fidelizados. <span class="tag-fix">CORREGIDO</span></li>
+        </ul>
+      </div>
+      <div class="col restr">
+        <h4>Restricciones</h4>
+        <ul class="plist">
+          <li>No puede anular facturas pasadas ni hacer devoluciones (requiere autorización de Administrador).</li>
+          <li>No puede modificar el inventario de forma manual (entradas/salidas).</li>
+          <li>No tiene acceso a configuraciones, creación de productos ni modificación de precios base.</li>
+          <li>Solo puede ver el reporte de ventas de su propio turno (no reportes globales).</li>
+          <li><strong>No puede aplicar un descuento mayor al tope configurado</strong> sin autorización de un Administrador. <span class="tag-new">NUEVO</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ REGLAS TRANSVERSALES ============ -->
+  <div class="section-title">Reglas transversales</div>
+  <p class="section-sub">Aplican sobre todos los roles anteriores, sin importar el nivel jerárquico. Corrigen los puntos de riesgo identificados en la versión anterior del documento.</p>
+
+  <div class="rule-card">
+    <h4>A. Anulación vs. eliminación de facturas</h4>
+    <p>
+      Ningún rol —ni siquiera el Propietario— puede eliminar (borrar físicamente) una
+      factura desde la operación normal del sistema. Toda factura solo se <strong>anula</strong>
+      (queda visible, marcada como anulada, con motivo y usuario registrados). El borrado
+      físico de un registro de facturación es una operación excepcional, fuera del flujo
+      normal de roles, que exige doble confirmación y la participación de soporte técnico,
+      y que en sí misma queda registrada en el log de auditoría.
+    </p>
+    <p class="disclaimer">Consistente con el tratamiento de facturación electrónica en Colombia (DIAN): un documento fiscal se anula, no se hace desaparecer.</p>
+  </div>
+
+  <div class="rule-card">
+    <h4>B. Aprobación de mermas (control de doble persona)</h4>
+    <p>
+      Toda merma registrada por el Bodeguero que supere un umbral configurable (definido
+      por el Administrador, en pesos o en % del costo del producto) queda en estado
+      <strong>"pendiente de aprobación"</strong> hasta que un Administrador (o rol superior)
+      la revise y apruebe. Por ejemplo, con el umbral en $50.000: una pérdida de $30.000
+      se registra normal, sin intervención; una de $200.000 queda pendiente hasta que el
+      Administrador la revise. Esto evita que una salida de inventario reportada como
+      merma sea en realidad una sustracción no autorizada ("robo hormiga") sin que nadie
+      más la revise.
+    </p>
+    <p>
+      <strong>Valor de partida sugerido: $50.000 COP por movimiento individual</strong>
+      (ajustable por el Administrador según el tamaño del inventario del negocio). <span class="tag-fix">CORREGIDO</span>
+    </p>
+    <p>
+      <strong>Regla de default seguro:</strong> mientras el Administrador no configure
+      explícitamente este umbral, el sistema debe asumirlo en <strong>$0</strong> — es
+      decir, toda merma requiere aprobación hasta que alguien decida subir el límite.
+      La ausencia de configuración nunca debe interpretarse como "sin límite": eso dejaría
+      abierta exactamente la puerta que esta regla busca cerrar. <span class="tag-fix">CORREGIDO</span>
+    </p>
+  </div>
+
+  <div class="rule-card">
+    <h4>C. Tope de descuentos configurable por rol</h4>
+    <p>
+      El sistema permite configurar, por rol, un porcentaje máximo de descuento aplicable
+      sin autorización adicional. Punto de partida sugerido:
+    </p>
+    <ul>
+      <li>Cajero: hasta 10%.</li>
+      <li>Administrador: sin tope, o un tope superior configurable.</li>
+      <li>Propietario: sin tope.</li>
+    </ul>
+    <p>Un descuento que supere el tope del rol requiere la autorización (PIN/clave) de un rol con tope superior.</p>
+  </div>
+
+  <div class="rule-card">
+    <h4>D. Seguridad técnica <span class="tag-new">NUEVO</span></h4>
+    <ul>
+      <li><strong>Autenticación de dos factores (2FA) obligatoria para TODOS los roles</strong> — Cajero y Bodeguero incluidos, no solo Propietario y Administrador: ambos manejan valor real (dinero e inventario) y son un objetivo igual de válido para un acceso indebido. <span class="tag-fix">CORREGIDO</span></li>
+      <li>Cierre de sesión automático por inactividad (tiempo configurable).</li>
+      <li>Bloqueo temporal de la cuenta tras N intentos fallidos de inicio de sesión consecutivos, con cada intento (exitoso o fallido) registrado en el historial de seguridad.</li>
+      <li>Historial de sesiones activas por usuario, con opción de cierre remoto.</li>
+    </ul>
+  </div>
+
+  <div class="rule-card">
+    <h4>E. Protección de datos personales — Ley 1581 de 2012 (Habeas Data) <span class="tag-new">NUEVO</span></h4>
+    <p>
+      Cualquier reporte exportado (por el rol Auditor u otro rol con permiso de
+      exportación) que contenga datos personales de clientes (nombre, documento,
+      teléfono, correo, dirección) debe:
+    </p>
+    <ul>
+      <li>Dejar registro en el log de auditoría de quién exportó el reporte, cuándo, y qué rango de datos incluyó.</li>
+      <li>Estar disponible solo para roles con una finalidad legítima definida — no exportación libre para cualquier rol con acceso de lectura.</li>
+      <li>Permitir enmascarar o anonimizar parcialmente datos sensibles en reportes agregados que no necesiten el dato completo (ej. mostrar solo los últimos 4 dígitos de un documento).</li>
+    </ul>
+    <p class="disclaimer">Recomendación de cumplimiento normativo colombiano; la implementación exacta debe validarse con asesoría legal antes de considerarse completa.</p>
+  </div>
+
+  <div class="future-box">
+    <h4>Consideración futura: rol "Gerente de Sucursal"</h4>
+    <p>
+      Si el negocio crece a operar más de una sucursal, se sugiere incorporar un rol
+      intermedio entre Administrador y Propietario: permisos equivalentes a Administrador,
+      pero acotados a su propia sucursal (sin visibilidad ni gestión de otras sucursales),
+      y sin acceso a la configuración fiscal global del negocio.
+    </p>
+    <p class="disclaimer">Este rol NO forma parte todavía de la matriz activa — queda documentado como punto pendiente de definición, a incorporar cuando el negocio efectivamente opere multisucursal.</p>
+  </div>
+
+  <footer>Documento generado para la estructuración y seguridad del software AXON POS — Versión 2 (corregida)</footer>
+
+</div>
+</body>
+</html>

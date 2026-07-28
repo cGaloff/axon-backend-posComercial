@@ -18,15 +18,15 @@ public class GetInvoicePdfBySaleIdQueryHandlerTests
         var sale = Sale.Create(Guid.NewGuid(), Guid.NewGuid());
         var item = SaleItem.Create(sale.Id, Guid.NewGuid(), "Producto", "SKU-001", unitPrice: 100m, quantity: 1);
         sale.AddItem(item);
-        sale.AddPayment(SalePayment.Create(sale.Id, PaymentMethod.Card, sale.Total));
+        sale.AddPayment(SalePayment.Create(sale.Id, PaymentMethod.Cash, sale.Total));
 
         dbContext.Sales.Add(sale);
         await dbContext.SaveChangesAsync();
 
         var handler = new GetInvoicePdfBySaleIdQueryHandler(dbContext, new FakePdfService(), new FakeTenantConfigRepository(config));
 
-        // Venta con pago por tarjeta aún pendiente de confirmación: nunca se
-        // emitió factura, así que ver "la factura de esa venta" debe rechazarse.
+        // Nunca se llamó a IssueInvoiceCommandHandler para esta venta: no tiene
+        // factura emitida, así que ver "la factura de esa venta" debe rechazarse.
         await Assert.ThrowsAsync<DomainException>(() => handler.Handle(new GetInvoicePdfBySaleIdQuery(sale.Id), CancellationToken.None));
     }
 

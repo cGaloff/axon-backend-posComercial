@@ -46,6 +46,15 @@ public class CurrentUserContext : ICurrentUserContext
         }
     }
 
+    public decimal? MaxDiscountPercentage
+    {
+        get
+        {
+            var claim = User?.FindFirst("max_discount_percentage")?.Value;
+            return decimal.TryParse(claim, out var value) ? value : null;
+        }
+    }
+
     public bool HasPermission(string permission)
     {
         return Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase);

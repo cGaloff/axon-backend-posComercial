@@ -21,7 +21,12 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
 
     public async Task<MediatRUnit> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {
-        var product = await _dbContext.Products.SingleOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
+        // Taxes es una owned collection: hay que cargarla explícitamente antes de
+        // reemplazarla con SetTaxes(), o EF no puede calcular qué filas borrar al
+        // aplicar el estado nuevo (revienta con DbUpdateConcurrencyException).
+        var product = await _dbContext.Products
+            .Include(p => p.Taxes)
+            .SingleOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
         if (product is null)
         {
@@ -46,7 +51,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
 
         // Taxes representa el estado completo deseado: una lista nula o vacía deja
         // el producto sin ningún impuesto configurado, de forma explícita.
-        var normalizedTaxes = await NormalizeTaxesAsync(request.Taxes, cancellationToken);
+        var normalizedTaxes = await ProductTaxNormalization.NormalizeAsync(_dbContext, request.Taxes, cancellationToken);
         product.SetTaxes(normalizedTaxes);
 
         await _unitOfWork.CommitAsync(cancellationToken);
@@ -80,30 +85,4 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         return normalized;
     }
 
-    private async Task<List<(Guid TaxTypeId, decimal Percentage)>> NormalizeTaxesAsync(
-        List<ProductTaxRequest>? taxes,
-        CancellationToken cancellationToken)
-    {
-        var normalized = new List<(Guid TaxTypeId, decimal Percentage)>();
-
-        if (taxes is null)
-        {
-            return normalized;
-        }
-
-        foreach (var tax in taxes)
-        {
-            var taxTypeExists = await _dbContext.TaxTypes.AnyAsync(
-                t => t.Id == tax.TaxTypeId && t.IsActive, cancellationToken);
-
-            if (!taxTypeExists)
-            {
-                throw new DomainException($"El tipo de impuesto '{tax.TaxTypeId}' no existe o está inactivo");
-            }
-
-            normalized.Add((tax.TaxTypeId, tax.Percentage));
-        }
-
-        return normalized;
-    }
 }

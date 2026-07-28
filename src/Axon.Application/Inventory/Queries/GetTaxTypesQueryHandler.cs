@@ -24,7 +24,7 @@ public class GetTaxTypesQueryHandler : IRequestHandler<GetTaxTypesQuery, List<Ta
 
         return await query
             .OrderBy(t => t.Name)
-            .Select(t => new TaxTypeDto(t.Id, t.Name, t.Code, t.IsActive))
+            .Select(t => new TaxTypeDto(t.Id, t.Code, t.Name, t.Description, t.IsActive))
             .ToListAsync(cancellationToken);
     }
 }

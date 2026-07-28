@@ -25,7 +25,7 @@ public class CreateProductCommandHandlerSkuReuseTests
         await dbContext.SaveChangesAsync();
 
         var unitOfWork = new FakeUnitOfWork(dbContext);
-        var createHandler = new CreateProductCommandHandler(dbContext, unitOfWork);
+        var createHandler = new CreateProductCommandHandler(dbContext, unitOfWork, new FakeCurrentUserContext());
         var deactivateHandler = new DeactivateProductCommandHandler(dbContext, unitOfWork);
 
         return (createHandler, deactivateHandler, dbContext, category, unit);

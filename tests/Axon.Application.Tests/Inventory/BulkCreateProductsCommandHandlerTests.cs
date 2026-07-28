@@ -19,7 +19,7 @@ public class BulkCreateProductsCommandHandlerTests
         await dbContext.SaveChangesAsync();
 
         var handler = new BulkCreateProductsCommandHandler(
-            dbContext, new FakeUnitOfWork(dbContext), new CreateProductCommandValidator());
+            dbContext, new FakeUnitOfWork(dbContext), new CreateProductCommandValidator(), new FakeCurrentUserContext());
 
         return (handler, dbContext, category, unit);
     }
@@ -151,7 +151,7 @@ public class BulkCreateProductsCommandHandlerTests
     {
         var (handler, dbContext, category, unit) = await ArrangeAsync();
 
-        var iva = TaxType.Create("IVA", "IVA");
+        var iva = TaxType.Create(TaxCode.Iva, "IVA", "Impuesto sobre las ventas");
         dbContext.TaxTypes.Add(iva);
         await dbContext.SaveChangesAsync();
 
@@ -166,6 +166,30 @@ public class BulkCreateProductsCommandHandlerTests
         var product = dbContext.Products.Single(p => p.Sku == "BULK-TAX");
         var tax = Assert.Single(product.Taxes);
         Assert.Equal(iva.Id, tax.TaxTypeId);
+    }
+
+    // Catálogo fijo de impuestos colombianos: el IVA solo admite 19%, 10%, 5%
+    // o exento (0%) — una fila con otro porcentaje se omite, no aborta el lote.
+    [Fact]
+    public async Task Handle_WithIvaAtADisallowedPercentage_SkipsThatRowWithoutAbortingTheBatch()
+    {
+        var (handler, dbContext, category, unit) = await ArrangeAsync();
+
+        var iva = TaxType.Create(TaxCode.Iva, "IVA", "Impuesto sobre las ventas");
+        dbContext.TaxTypes.Add(iva);
+        await dbContext.SaveChangesAsync();
+
+        var command = new BulkCreateProductsCommand(new List<CreateProductCommand>
+        {
+            Row("BULK-IVA-BAD", category.Id, unit.Id) with { Taxes = new List<ProductTaxRequest> { new(iva.Id, 12m) } },
+            Row("BULK-IVA-GOOD", category.Id, unit.Id) with { Taxes = new List<ProductTaxRequest> { new(iva.Id, 19m) } }
+        });
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        Assert.Equal(1, result.InsertedCount);
+        Assert.Equal(1, result.SkippedCount);
+        Assert.Contains(result.Errors, e => e.Contains("BULK-IVA-BAD") && e.Contains("IVA"));
     }
 
     // Una fila que rompe una regla de negocio básica (precio <= 0) se omite con
@@ -188,6 +212,41 @@ public class BulkCreateProductsCommandHandlerTests
         Assert.Equal(1, result.SkippedCount);
         Assert.Contains(result.Errors, e => e.Contains("BULK-INVALIDPRICE"));
         Assert.Single(dbContext.Products);
+    }
+
+    [Fact]
+    public async Task Handle_WithInitialStockAndDefaultWarehouse_SetsProductStockAndRecordsMovement()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var category = Category.Create("Categoria de prueba", "");
+        var unit = Unit.Create("Unidad", "und");
+        dbContext.Categories.Add(category);
+        dbContext.Units.Add(unit);
+        dbContext.Warehouses.Add(Warehouse.Create("Tienda Principal", "Bodega principal", isDefault: true));
+        await dbContext.SaveChangesAsync();
+
+        var handler = new BulkCreateProductsCommandHandler(
+            dbContext, new FakeUnitOfWork(dbContext), new CreateProductCommandValidator(), new FakeCurrentUserContext());
+
+        var row = Row("BULK-INITSTOCK", category.Id, unit.Id) with { InitialStock = 30 };
+        var result = await handler.Handle(new BulkCreateProductsCommand(new List<CreateProductCommand> { row }), CancellationToken.None);
+
+        Assert.Equal(1, result.InsertedCount);
+        var product = dbContext.Products.Single(p => p.Sku == "BULK-INITSTOCK");
+        Assert.Equal(30, product.Stock);
+        Assert.Single(dbContext.InventoryMovements);
+    }
+
+    [Fact]
+    public async Task Handle_WithInitialStockButNoDefaultWarehouse_ThrowsDomainException()
+    {
+        var (handler, _, category, unit) = await ArrangeAsync();
+
+        var row = Row("BULK-INITSTOCK-NOWH", category.Id, unit.Id) with { InitialStock = 10 };
+
+        await Assert.ThrowsAsync<Axon.Domain.Exceptions.DomainException>(
+            () => handler.Handle(new BulkCreateProductsCommand(new List<CreateProductCommand> { row }), CancellationToken.None));
     }
 
     [Fact]

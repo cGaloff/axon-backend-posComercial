@@ -145,6 +145,9 @@ var applicationAssembly = typeof(LoginCommand).Assembly;
 
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(applicationAssembly));
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+// Después de ValidationBehavior a propósito: solo se audita una acción que ya
+// pasó validación y terminó de ejecutarse sin lanzar excepción.
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuditLoggingBehavior<,>));
 builder.Services.AddValidatorsFromAssembly(applicationAssembly);
 
 var app = builder.Build();

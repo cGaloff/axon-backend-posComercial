@@ -25,6 +25,9 @@ public class RoleConfiguration : IEntityTypeConfiguration<Role>
         builder.Property(r => r.IsSystem)
             .HasDefaultValue(false);
 
+        builder.Property(r => r.MaxDiscountPercentage)
+            .HasColumnType("decimal(5,2)");
+
         // Role.Permissions is IReadOnlyList<Permission> with no public setter,
         // backed by the private field _permissions -> EF needs field access to
         // populate it during Include/ThenInclude.

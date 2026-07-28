@@ -2,7 +2,11 @@ CREATE TABLE {SCHEMA_NAME}.roles (
     id UUID PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     is_system BOOLEAN NOT NULL DEFAULT false,
-    description TEXT
+    description TEXT,
+    -- NULL = sin tope (Propietario/Administrador). Con valor = % máximo de
+    -- descuento aplicable por un usuario con este rol sin autorización de un
+    -- rol con tope superior (Matriz de Roles y Permisos v2, regla transversal C).
+    max_discount_percentage DECIMAL(5, 2)
 );
 
 CREATE TABLE {SCHEMA_NAME}.permissions (
@@ -23,8 +27,17 @@ CREATE TABLE {SCHEMA_NAME}.users (
     full_name VARCHAR(200) NOT NULL,
     email VARCHAR(200) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    -- PIN corto opcional (hash independiente de password_hash) para autorizar
+    -- acciones de rol superior sin cerrar la sesión de quien las pide (Matriz de
+    -- Roles y Permisos v2, rol Cajero).
+    pin_hash VARCHAR(500),
     role_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.roles(id),
     is_active BOOLEAN NOT NULL DEFAULT true,
+    -- Bloqueo por intentos fallidos + cierre de sesión por inactividad (Matriz
+    -- de Roles y Permisos v2, "seguridad técnica").
+    failed_login_attempts INT NOT NULL DEFAULT 0,
+    locked_until TIMESTAMPTZ,
+    last_activity_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -58,10 +71,14 @@ CREATE TABLE {SCHEMA_NAME}.cash_registers (
     is_active BOOLEAN NOT NULL DEFAULT true
 );
 
+-- Catálogo fijo de 8 impuestos colombianos (ver TaxCode en el backend): el
+-- tenant no puede crear/editar impuestos personalizados, solo desactivar los
+-- que no le apliquen a su negocio (is_active).
 CREATE TABLE {SCHEMA_NAME}.tax_types (
     id UUID PRIMARY KEY,
+    code VARCHAR(20) NOT NULL,
     name VARCHAR(100) NOT NULL,
-    code VARCHAR(20),
+    description VARCHAR(300) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT true
 );
 
@@ -121,7 +138,14 @@ CREATE TABLE {SCHEMA_NAME}.inventory_movements (
     stock_after INT NOT NULL,
     reason VARCHAR(500),
     created_by UUID NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Applied/PendingApproval/Approved/Rejected: solo mermas (Loss) por encima de
+    -- tenant_config.merma_approval_threshold quedan en PendingApproval (Matriz de
+    -- Roles y Permisos v2, regla transversal B).
+    status VARCHAR(30) NOT NULL DEFAULT 'Applied',
+    reviewed_by UUID,
+    reviewed_at TIMESTAMPTZ,
+    rejection_reason VARCHAR(500)
 );
 
 CREATE INDEX idx_inventory_movements_product_created ON {SCHEMA_NAME}.inventory_movements (product_id, created_at);
@@ -151,7 +175,12 @@ CREATE TABLE {SCHEMA_NAME}.sales (
     voided_by UUID,
     void_reason TEXT,
     returned_at TIMESTAMPTZ,
-    returned_by UUID
+    returned_by UUID,
+    -- Quién PIDIÓ la anulación/devolución es voided_by/returned_by (p. ej. un
+    -- Cajero); authorized_by es el Administrador/Propietario cuyo PIN la habilitó,
+    -- NULL si quien la pidió ya tenía el permiso directamente (Matriz de Roles y
+    -- Permisos v2, rol Cajero).
+    authorized_by UUID
 );
 
 CREATE INDEX idx_sales_created_status ON {SCHEMA_NAME}.sales (created_at, status);
@@ -298,6 +327,10 @@ CREATE TABLE {SCHEMA_NAME}.tenant_config (
     website VARCHAR(200),
     logo_url VARCHAR(500),
     is_responsable_iva BOOLEAN NOT NULL DEFAULT false,
+    -- Umbral (en pesos) desde el cual una merma queda pendiente de aprobación de
+    -- un Administrador. Default seguro en 0: hasta que se configure explícitamente,
+    -- TODA merma requiere aprobación (Matriz de Roles y Permisos v2, regla B).
+    merma_approval_threshold DECIMAL(12, 2) NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -418,3 +451,30 @@ CREATE TABLE {SCHEMA_NAME}.refresh_tokens (
 );
 
 CREATE INDEX idx_refresh_tokens_user ON {SCHEMA_NAME}.refresh_tokens (user_id);
+
+-- Registro de auditoría inmutable (Matriz de Roles y Permisos v2, regla A): no
+-- hay UPDATE/DELETE en el código de la aplicación sobre esta tabla, ni
+-- siquiera para el Propietario — solo INSERT desde AuditLoggingBehavior y
+-- SELECT desde la consulta de auditoría.
+CREATE TABLE {SCHEMA_NAME}.audit_logs (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    action VARCHAR(200) NOT NULL,
+    entity_id UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_audit_logs_created_user ON {SCHEMA_NAME}.audit_logs (created_at, user_id);
+
+-- Historial de intentos de login (Matriz de Roles y Permisos v2, "seguridad
+-- técnica"). user_id es NULL si el email no correspondía a ningún usuario real.
+CREATE TABLE {SCHEMA_NAME}.login_attempts (
+    id UUID PRIMARY KEY,
+    email VARCHAR(200) NOT NULL,
+    user_id UUID,
+    success BOOLEAN NOT NULL,
+    ip_address VARCHAR(64),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_login_attempts_created_user ON {SCHEMA_NAME}.login_attempts (created_at, user_id);

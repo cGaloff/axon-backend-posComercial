@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Axon.Application.Interfaces;
 using Axon.Domain.Entities.Inventory;
+using Axon.Domain.Entities.Taxes;
 using Axon.Domain.Exceptions;
 using Axon.Domain.Interfaces;
 using FluentValidation;
@@ -20,15 +21,18 @@ public class BulkCreateProductsCommandHandler : IRequestHandler<BulkCreateProduc
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IValidator<CreateProductCommand> _productValidator;
+    private readonly ICurrentUserContext _currentUserContext;
 
     public BulkCreateProductsCommandHandler(
         IApplicationDbContext dbContext,
         IUnitOfWork unitOfWork,
-        IValidator<CreateProductCommand> productValidator)
+        IValidator<CreateProductCommand> productValidator,
+        ICurrentUserContext currentUserContext)
     {
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
         _productValidator = productValidator;
+        _currentUserContext = currentUserContext;
     }
 
     public async Task<BulkImportResult> Handle(BulkCreateProductsCommand request, CancellationToken cancellationToken)
@@ -65,16 +69,28 @@ public class BulkCreateProductsCommandHandler : IRequestHandler<BulkCreateProduc
             .Select(t => t.TaxTypeId)
             .Distinct()
             .ToList();
-        var activeTaxTypeIds = await _dbContext.TaxTypes
+        // Se carga el Code de cada impuesto (no solo su Id) porque el IVA exige
+        // validar que el porcentaje sea uno de los fijos por norma tributaria
+        // (ver TaxType.AllowedIvaPercentages) — el resto de los impuestos admite
+        // cualquier porcentaje, igual que antes.
+        var activeTaxTypesById = await _dbContext.TaxTypes
             .Where(t => t.IsActive && taxTypeIds.Contains(t.Id))
-            .Select(t => t.Id)
-            .ToListAsync(cancellationToken);
-        var activeTaxTypeSet = new HashSet<Guid>(activeTaxTypeIds);
+            .ToDictionaryAsync(t => t.Id, cancellationToken);
 
         // El catálogo de definiciones de atributos es chico (decenas, no miles):
         // se carga completo una sola vez y se filtra en memoria por fila, en vez
         // de una consulta por cada atributo de cada producto.
         var attributeDefinitions = await _dbContext.AttributeDefinitions.ToListAsync(cancellationToken);
+
+        // Solo se busca la bodega por defecto si al menos una fila trae stock
+        // inicial: igual que en la creación individual, InitialStock=0 (el
+        // default) no debe exigirle al tenant tener una bodega configurada.
+        Warehouse? defaultWarehouse = null;
+        if (request.Products.Any(p => p.InitialStock > 0))
+        {
+            defaultWarehouse = await _dbContext.Warehouses.SingleOrDefaultAsync(w => w.IsDefault, cancellationToken)
+                ?? throw new DomainException("No hay una bodega por defecto configurada");
+        }
 
         // SKUs repetidos DENTRO del mismo archivo: si no se detecta aquí, dos
         // filas nuevas con el mismo SKU pasarían la validación contra existingSkuSet
@@ -109,10 +125,18 @@ public class BulkCreateProductsCommandHandler : IRequestHandler<BulkCreateProduc
                 continue;
             }
 
-            var invalidTax = row.Taxes?.FirstOrDefault(t => !activeTaxTypeSet.Contains(t.TaxTypeId));
+            var invalidTax = row.Taxes?.FirstOrDefault(t => !activeTaxTypesById.ContainsKey(t.TaxTypeId));
             if (invalidTax is not null)
             {
                 errors.Add($"SKU '{row.Sku}': el impuesto '{invalidTax.TaxTypeId}' no existe o está inactivo.");
+                continue;
+            }
+
+            var invalidIvaPercentage = row.Taxes?.FirstOrDefault(
+                t => !TaxType.IsValidPercentageFor(activeTaxTypesById[t.TaxTypeId].Code, t.Percentage));
+            if (invalidIvaPercentage is not null)
+            {
+                errors.Add($"SKU '{row.Sku}': el IVA solo admite las tarifas 19%, 10%, 5% o exento (0%).");
                 continue;
             }
 
@@ -133,6 +157,27 @@ public class BulkCreateProductsCommandHandler : IRequestHandler<BulkCreateProduc
                 }
 
                 product.SetTaxes(row.Taxes?.Select(t => (t.TaxTypeId, t.Percentage)) ?? Enumerable.Empty<(Guid, decimal)>());
+
+                if (row.InitialStock > 0)
+                {
+                    product.AdjustStock(row.InitialStock);
+
+                    var movement = InventoryMovement.Create(
+                        product.Id,
+                        defaultWarehouse!.Id,
+                        InventoryMovementType.InitialStock,
+                        row.InitialStock,
+                        stockBefore: 0,
+                        "Stock inicial al crear el producto (carga masiva)",
+                        _currentUserContext.UserId);
+
+                    _dbContext.InventoryMovements.Add(movement);
+
+                    if (product.Stock <= product.MinStock)
+                    {
+                        _dbContext.StockAlerts.Add(StockAlert.Create(product.Id, defaultWarehouse.Id, product.Stock, product.MinStock));
+                    }
+                }
 
                 newProducts.Add(product);
             }

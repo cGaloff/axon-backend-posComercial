@@ -2,9 +2,10 @@ using Axon.Domain.Entities.Sales;
 
 namespace Axon.Application.Sales.Commands;
 
-// PdfReceipt/InvoiceNumber son null cuando la venta queda PendingPayment (pago
-// con tarjeta/transferencia aún no confirmado): la factura se emite después,
-// al confirmarse el pago (ver ConfirmSalePaymentCommandHandler).
+// PdfReceipt/InvoiceNumber siempre vienen con valor: toda venta presencial
+// completa y factura de inmediato sin importar el método de pago (ver
+// Sale.AddPayment). Quedan nullable por si en el futuro se integra una
+// pasarela de pago real que deje una venta PendingPayment.
 public record ProcessSaleResult(
     Guid SaleId,
     string SaleNumber,

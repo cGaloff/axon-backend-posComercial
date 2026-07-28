@@ -85,7 +85,7 @@ public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, PagedRe
                 p.Attributes,
                 p.Stock <= p.MinStock,
                 p.IsActive,
-                p.Taxes.Select(t => new ProductTaxDto(t.TaxTypeId, string.Empty, t.Percentage)).ToList()))
+                p.Taxes.Select(t => new ProductTaxDto(t.TaxTypeId, default, string.Empty, t.Percentage)).ToList()))
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
@@ -104,15 +104,17 @@ public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, PagedRe
             return products;
         }
 
-        var taxTypeNames = await _dbContext.TaxTypes
+        var taxTypesById = await _dbContext.TaxTypes
             .Where(t => taxTypeIds.Contains(t.Id))
-            .ToDictionaryAsync(t => t.Id, t => t.Name, cancellationToken);
+            .ToDictionaryAsync(t => t.Id, cancellationToken);
 
         return products
             .Select(p => p with
             {
                 Taxes = p.Taxes
-                    .Select(t => t with { TaxTypeName = taxTypeNames.GetValueOrDefault(t.TaxTypeId, string.Empty) })
+                    .Select(t => taxTypesById.TryGetValue(t.TaxTypeId, out var taxType)
+                        ? t with { Code = taxType.Code, TaxTypeName = taxType.Name }
+                        : t)
                     .ToList()
             })
             .ToList();

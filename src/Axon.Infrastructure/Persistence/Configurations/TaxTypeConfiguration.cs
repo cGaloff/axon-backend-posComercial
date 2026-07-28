@@ -16,8 +16,16 @@ public class TaxTypeConfiguration : IEntityTypeConfiguration<TaxType>
             .IsRequired()
             .HasMaxLength(100);
 
+        // Catálogo fijo de 8 valores (ver TaxCode): se guarda como texto
+        // (nombre del enum) para que la columna siga siendo legible en la BD.
         builder.Property(t => t.Code)
+            .IsRequired()
+            .HasConversion<string>()
             .HasMaxLength(20);
+
+        builder.Property(t => t.Description)
+            .IsRequired()
+            .HasMaxLength(300);
 
         builder.Property(t => t.IsActive)
             .HasDefaultValue(true);
