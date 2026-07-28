@@ -25,13 +25,20 @@ UPDATE {SCHEMA_NAME}.tax_types
     SET code = 'Inc', name = 'INC', description = 'Impuesto nacional al consumo'
     WHERE code = 'INC' OR UPPER(name) = 'INC';
 
--- Impuestos fijos que faltan por sembrar en tenants ya provisionados antes de
--- este catálogo (comparados por code para que la migración sea idempotente).
+-- Impuestos fijos que falten por sembrar en tenants ya provisionados antes de
+-- este catálogo, sea cual sea su estado inicial (comparados por code para que
+-- la migración sea idempotente). Se listan los 8 completos, no solo los 5
+-- "nuevos": un tenant provisionado con un seed antiguo/parcial puede no tener
+-- siquiera IVA/ICA/INC (ver hallazgo en producción — algunos tenants ya
+-- provisionados no tenían ICA ni INC, y uno ni siquiera tenía IVA).
 INSERT INTO {SCHEMA_NAME}.tax_types (id, code, name, description, is_active)
 SELECT gen_random_uuid(), v.code, v.name, v.description, true
 FROM (VALUES
+    ('Iva', 'IVA', 'Impuesto sobre las ventas'),
     ('Gmf', 'GMF', 'Gravamen a los movimientos financieros'),
+    ('Inc', 'INC', 'Impuesto nacional al consumo'),
     ('IncPl', 'INC PL', 'Impuesto nacional al consumo de bolsas plásticas'),
+    ('Ica', 'ICA', 'Impuesto de timbre departamental'),
     ('Incombustible', 'Incombustible', 'Impuesto nacional a la gasolina y al ACPM'),
     ('Incarbono', 'Incarbono', 'Impuesto nacional al carbono'),
     ('Ibua', 'IBUA', 'Impuesto nacional a las bebidas azucaradas')
