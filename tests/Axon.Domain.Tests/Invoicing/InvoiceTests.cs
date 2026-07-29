@@ -16,6 +16,9 @@ public class InvoiceTests
             UnitPrice: 119m,
             Quantity: 1,
             Discount: 0m,
+            DiscountPercentage: null,
+            GeneralDiscountShare: 0m,
+            UnitCost: 0m,
             Subtotal: 119m,
             SubtotalBase: 100m,
             Taxes: new List<InvoiceItemTaxSnapshot>

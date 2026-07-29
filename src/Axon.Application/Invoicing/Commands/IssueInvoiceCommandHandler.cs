@@ -70,6 +70,9 @@ public class IssueInvoiceCommandHandler : IRequestHandler<IssueInvoiceCommand, I
             item.UnitPrice,
             item.Quantity,
             item.Discount,
+            item.DiscountPercentage,
+            item.GeneralDiscountShare,
+            item.UnitCost,
             item.Subtotal,
             item.SubtotalBase,
             item.Taxes.Select(t => new InvoiceItemTaxSnapshot(t.TaxTypeId, t.TaxTypeName, t.Percentage, t.Amount)).ToList()))
@@ -86,7 +89,10 @@ public class IssueInvoiceCommandHandler : IRequestHandler<IssueInvoiceCommand, I
             sale.CustomerName,
             sale.Total,
             itemSnapshots,
-            paymentSnapshots);
+            paymentSnapshots,
+            sale.CustomerDocumentNumber,
+            sale.GeneralDiscountAmount,
+            sale.GeneralDiscountPercentage);
 
         _dbContext.Invoices.Add(invoice);
         await _unitOfWork.CommitAsync(cancellationToken);

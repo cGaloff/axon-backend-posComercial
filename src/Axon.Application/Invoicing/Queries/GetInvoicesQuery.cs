@@ -19,6 +19,7 @@ public record InvoiceDto(
     Guid SaleId,
     string SaleNumber,
     string CustomerName,
+    string CustomerDocumentNumber,
     decimal Total,
     List<InvoiceItemDto> Items,
     List<InvoicePaymentDto> Payments);

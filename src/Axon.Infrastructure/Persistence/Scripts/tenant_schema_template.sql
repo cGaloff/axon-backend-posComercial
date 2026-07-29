@@ -165,8 +165,18 @@ CREATE TABLE {SCHEMA_NAME}.sales (
     sale_number VARCHAR(50) NOT NULL UNIQUE,
     customer_id UUID NULL,
     customer_name VARCHAR(200),
+    customer_document_type VARCHAR(10),
+    customer_document_number VARCHAR(30),
     status VARCHAR(50) NOT NULL DEFAULT 'Completed',
     total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    -- Monto ya convertido (si se ingresó como %) del descuento aplicado a TODA
+    -- la venta; repartido entre sale_items.general_discount_share. Solo para
+    -- mostrarlo como línea propia en la factura (ver PdfService.ComposeTotals).
+    general_discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    -- Solo si el descuento general se ingresó como % (null si fue monto fijo):
+    -- se guarda para mostrarlo junto al monto en la factura ("Descuento
+    -- general (10%)"), no participa en ningún cálculo.
+    general_discount_percentage NUMERIC(9, 4),
     notes TEXT,
     cash_register_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.cash_registers(id),
     created_by UUID NOT NULL,
@@ -209,6 +219,15 @@ CREATE TABLE {SCHEMA_NAME}.sale_items (
     unit_price NUMERIC(12, 2) NOT NULL,
     quantity INT NOT NULL,
     discount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    -- Solo si el descuento de este producto se ingresó como % (null si fue
+    -- monto fijo): se guarda para mostrarlo junto al monto en la factura
+    -- ("Desc: (5%)"), no participa en ningún cálculo.
+    discount_percentage NUMERIC(9, 4),
+    general_discount_share NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    -- Costo unitario del producto AL MOMENTO DE LA VENTA (snapshot de
+    -- products.cost, igual que unit_price) — no el costo actual. 0 = sin dato
+    -- de costo (ventas anteriores a este campo, o producto sin costo cargado).
+    unit_cost NUMERIC(12, 2) NOT NULL DEFAULT 0,
     subtotal NUMERIC(12, 2) NOT NULL,
     subtotal_base NUMERIC(12, 2) NOT NULL DEFAULT 0
 );
@@ -249,7 +268,10 @@ CREATE TABLE {SCHEMA_NAME}.invoices (
     issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     sale_number VARCHAR(50) NOT NULL,
     customer_name VARCHAR(200),
-    total NUMERIC(12, 2) NOT NULL
+    customer_document_number VARCHAR(30),
+    total NUMERIC(12, 2) NOT NULL,
+    general_discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    general_discount_percentage NUMERIC(9, 4)
 );
 
 CREATE INDEX idx_invoices_issued_at ON {SCHEMA_NAME}.invoices (issued_at);
@@ -272,6 +294,9 @@ CREATE TABLE {SCHEMA_NAME}.invoice_items (
     unit_price NUMERIC(12, 2) NOT NULL,
     quantity INT NOT NULL,
     discount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    discount_percentage NUMERIC(9, 4),
+    general_discount_share NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    unit_cost NUMERIC(12, 2) NOT NULL DEFAULT 0,
     subtotal NUMERIC(12, 2) NOT NULL,
     subtotal_base NUMERIC(12, 2) NOT NULL DEFAULT 0
 );

@@ -25,8 +25,18 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(i => i.CustomerName)
             .HasMaxLength(200);
 
+        builder.Property(i => i.CustomerDocumentNumber)
+            .HasMaxLength(30);
+
         builder.Property(i => i.Total)
             .HasColumnType("decimal(12,2)");
+
+        builder.Property(i => i.GeneralDiscountAmount)
+            .HasColumnType("decimal(12,2)")
+            .HasDefaultValue(0m);
+
+        builder.Property(i => i.GeneralDiscountPercentage)
+            .HasColumnType("decimal(9,4)");
 
         builder.OwnsMany(i => i.Payments, payments =>
         {
@@ -75,6 +85,17 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
 
             items.Property(x => x.Discount)
                 .HasColumnType("decimal(12,2)");
+
+            items.Property(x => x.DiscountPercentage)
+                .HasColumnType("decimal(9,4)");
+
+            items.Property(x => x.GeneralDiscountShare)
+                .HasColumnType("decimal(12,2)")
+                .HasDefaultValue(0m);
+
+            items.Property(x => x.UnitCost)
+                .HasColumnType("decimal(12,2)")
+                .HasDefaultValue(0m);
 
             items.Property(x => x.Subtotal)
                 .HasColumnType("decimal(12,2)");

@@ -31,13 +31,17 @@ public class SalesController : ControllerBase
     public async Task<IActionResult> ProcessSale(ProcessSaleRequest request)
     {
         var command = new ProcessSaleCommand(
-            request.Items.Select(i => new SaleItemRequest(i.ProductId, i.Quantity, i.Discount)).ToList(),
+            request.Items.Select(i => new SaleItemRequest(i.ProductId, i.Quantity, i.Discount, i.DiscountPercentage)).ToList(),
             request.Payments.Select(p => new SalePaymentRequest(p.Method, p.Amount, p.AmountTendered)).ToList(),
             request.CashRegisterId,
             request.CustomerId,
             request.CustomerName,
             request.CustomerEmail,
-            request.Notes);
+            request.Notes,
+            request.CustomerDocumentType,
+            request.CustomerDocumentNumber,
+            request.SaleDiscountAmount,
+            request.SaleDiscountPercentage);
 
         var result = await _mediator.Send(command);
 

@@ -128,6 +128,70 @@ public class PdfServiceTests
         AssertValidPdf(pdfBytes);
     }
 
+    // El resumen de impuestos ahora siempre se muestra (IVA 19%, IVA 5%,
+    // Impoconsumo, Exento, Excluido de IVA), aunque sea en $0 — antes se
+    // omitía por completo si la venta no tenía ningún impuesto aplicado.
+    [Fact]
+    public void GenerateSaleReceipt_WithNoTaxesAtAll_ProducesValidPdf()
+    {
+        var service = new PdfService();
+
+        var sale = Sale.Create(Guid.NewGuid(), Guid.NewGuid());
+        var item = SaleItem.Create(sale.Id, Guid.NewGuid(), "Producto sin impuestos", "SKU-001", unitPrice: 5000m, quantity: 1);
+        sale.AddItem(item);
+        sale.AddPayment(SalePayment.Create(sale.Id, PaymentMethod.Cash, sale.Total));
+
+        var config = TenantConfigEntity.Create("Tienda de prueba");
+
+        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName);
+
+        AssertValidPdf(pdfBytes);
+    }
+
+    // La línea "Descuento general" (aparte de los descuentos por producto) solo
+    // debe imprimirse cuando la venta realmente tiene uno (evita renderizar
+    // "Descuento general: 0" en el 99% de las ventas que no lo usan).
+    [Fact]
+    public void GenerateSaleReceipt_WithGeneralDiscount_ProducesValidPdf()
+    {
+        var service = new PdfService();
+
+        var sale = Sale.Create(Guid.NewGuid(), Guid.NewGuid());
+        var item = SaleItem.Create(
+            sale.Id, Guid.NewGuid(), "Producto con descuento general", "SKU-001",
+            unitPrice: 100000m, quantity: 1, generalDiscountShare: 10000m);
+        sale.AddItem(item);
+        sale.SetGeneralDiscountAmount(10000m);
+        sale.AddPayment(SalePayment.Create(sale.Id, PaymentMethod.Cash, sale.Total, amountTendered: sale.Total));
+
+        var config = TenantConfigEntity.Create("Tienda de prueba");
+
+        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName);
+
+        AssertValidPdf(pdfBytes);
+    }
+
+    // El descuento manual por producto también se puede dar como % (no solo
+    // monto fijo) — la línea "Desc:" debe poder mostrarlo sin romper el PDF.
+    [Fact]
+    public void GenerateSaleReceipt_WithItemDiscountPercentage_ProducesValidPdf()
+    {
+        var service = new PdfService();
+
+        var sale = Sale.Create(Guid.NewGuid(), Guid.NewGuid());
+        var item = SaleItem.Create(
+            sale.Id, Guid.NewGuid(), "iPhone", "SKU-IPHONE",
+            unitPrice: 1000000m, quantity: 1, discount: 50000m, discountPercentage: 5m);
+        sale.AddItem(item);
+        sale.AddPayment(SalePayment.Create(sale.Id, PaymentMethod.Cash, sale.Total, amountTendered: sale.Total));
+
+        var config = TenantConfigEntity.Create("Tienda de prueba");
+
+        var pdfBytes = service.GenerateSaleReceipt(sale, config, CashierName);
+
+        AssertValidPdf(pdfBytes);
+    }
+
     // El código que generaba el QR (ComposeQrCode) se eliminó por completo, así
     // que no puede aparecer ningún XObject de imagen rasterizada en el PDF
     // resultante — el único elemento gráfico ahora es el ícono genérico del

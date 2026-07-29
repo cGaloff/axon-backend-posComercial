@@ -47,6 +47,7 @@ public class GetInvoicesQueryHandler : IRequestHandler<GetInvoicesQuery, PagedRe
                 i.SaleId,
                 i.SaleNumber,
                 i.CustomerName,
+                i.CustomerDocumentNumber,
                 i.Total,
                 i.Items.Select(x => new InvoiceItemDto(
                     x.ProductId,

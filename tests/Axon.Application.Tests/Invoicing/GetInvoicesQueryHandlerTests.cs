@@ -12,7 +12,7 @@ public class GetInvoicesQueryHandlerTests
     {
         var items = new List<InvoiceItemSnapshot>
         {
-            new(Guid.NewGuid(), "Producto", "SKU-001", 100m, 1, 0m, 100m, 100m, new List<InvoiceItemTaxSnapshot>())
+            new(Guid.NewGuid(), "Producto", "SKU-001", 100m, 1, 0m, null, 0m, 0m, 100m, 100m, new List<InvoiceItemTaxSnapshot>())
         };
         var payments = new List<InvoicePaymentSnapshot> { new(PaymentMethod.Cash, 100m, 100m, 0m) };
 

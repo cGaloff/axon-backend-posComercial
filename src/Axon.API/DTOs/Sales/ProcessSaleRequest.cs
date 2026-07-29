@@ -2,7 +2,9 @@ using Axon.Domain.Entities.Sales;
 
 namespace Axon.API.DTOs.Sales;
 
-public record SaleItemRequestDto(Guid ProductId, int Quantity, decimal Discount = 0);
+// Discount y DiscountPercentage son mutuamente excluyentes: un monto fijo
+// para este producto, o un % que el backend convierte al monto equivalente.
+public record SaleItemRequestDto(Guid ProductId, int Quantity, decimal? Discount = null, decimal? DiscountPercentage = null);
 
 // PaymentMethod: catálogo heredado (Cash/Card/Transfer/Credit), pendiente de
 // confirmar con negocio para el caso de pagos divididos (ver Axon.Application.Sales.Commands.SalePaymentRequest).
@@ -15,4 +17,8 @@ public record ProcessSaleRequest(
     Guid? CustomerId,
     string? CustomerName,
     string? CustomerEmail,
-    string? Notes);
+    string? Notes,
+    CustomerDocumentType? CustomerDocumentType = null,
+    string? CustomerDocumentNumber = null,
+    decimal? SaleDiscountAmount = null,
+    decimal? SaleDiscountPercentage = null);

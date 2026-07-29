@@ -25,7 +25,10 @@ public class Invoice
     public DateTime IssuedAt { get; private set; }
     public string SaleNumber { get; private set; } = string.Empty;
     public string CustomerName { get; private set; } = string.Empty;
+    public string CustomerDocumentNumber { get; private set; } = string.Empty;
     public decimal Total { get; private set; }
+    public decimal GeneralDiscountAmount { get; private set; }
+    public decimal? GeneralDiscountPercentage { get; private set; }
 
     public IReadOnlyList<InvoiceItem> Items => _items;
     public IReadOnlyList<InvoicePayment> Payments => _payments;
@@ -41,7 +44,10 @@ public class Invoice
         string customerName,
         decimal total,
         IReadOnlyList<InvoiceItemSnapshot> items,
-        IReadOnlyList<InvoicePaymentSnapshot> payments)
+        IReadOnlyList<InvoicePaymentSnapshot> payments,
+        string? customerDocumentNumber = null,
+        decimal generalDiscountAmount = 0,
+        decimal? generalDiscountPercentage = null)
     {
         if (saleId == Guid.Empty)
         {
@@ -73,7 +79,10 @@ public class Invoice
             IssuedAt = DateTime.UtcNow,
             SaleNumber = saleNumber,
             CustomerName = customerName ?? string.Empty,
-            Total = total
+            CustomerDocumentNumber = customerDocumentNumber ?? string.Empty,
+            Total = total,
+            GeneralDiscountAmount = generalDiscountAmount,
+            GeneralDiscountPercentage = generalDiscountPercentage
         };
 
         invoice._items.AddRange(items.Select(i => InvoiceItem.Create(
@@ -84,6 +93,9 @@ public class Invoice
             i.UnitPrice,
             i.Quantity,
             i.Discount,
+            i.DiscountPercentage,
+            i.GeneralDiscountShare,
+            i.UnitCost,
             i.Subtotal,
             i.SubtotalBase,
             i.Taxes)));

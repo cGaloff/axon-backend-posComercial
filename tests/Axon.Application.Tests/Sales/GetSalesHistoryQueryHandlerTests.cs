@@ -49,6 +49,48 @@ public class GetSalesHistoryQueryHandlerTests
         Assert.Null(uninvoicedDto.InvoiceNumber);
     }
 
+    // Reportado por negocio: el historial de ventas debe mostrar la
+    // identificación del cliente (CC/NIT) en vez de un hueco en blanco. Sin
+    // documento, el campo queda vacío (no tiene default, a diferencia del
+    // nombre, que sí cae en "Consumidor Final").
+    [Fact]
+    public async Task Handle_ExposesCustomerDocumentTypeAndNumber()
+    {
+        await using var dbContext = TestDbContextFactory.Create();
+
+        var identifiedSale = Sale.Create(
+            Guid.NewGuid(), Guid.NewGuid(),
+            customerName: "Juan Pérez",
+            customerDocumentType: CustomerDocumentType.Cc,
+            customerDocumentNumber: "1002003004");
+        var identifiedItem = SaleItem.Create(identifiedSale.Id, Guid.NewGuid(), "Producto", "SKU-001", unitPrice: 100m, quantity: 1);
+        identifiedSale.AddItem(identifiedItem);
+        identifiedSale.AddPayment(SalePayment.Create(identifiedSale.Id, PaymentMethod.Cash, identifiedSale.Total));
+
+        var anonymousSale = Sale.Create(Guid.NewGuid(), Guid.NewGuid());
+        var anonymousItem = SaleItem.Create(anonymousSale.Id, Guid.NewGuid(), "Producto", "SKU-002", unitPrice: 100m, quantity: 1);
+        anonymousSale.AddItem(anonymousItem);
+        anonymousSale.AddPayment(SalePayment.Create(anonymousSale.Id, PaymentMethod.Cash, anonymousSale.Total));
+
+        dbContext.Sales.AddRange(identifiedSale, anonymousSale);
+        await dbContext.SaveChangesAsync();
+
+        var handler = new GetSalesHistoryQueryHandler(dbContext);
+
+        var result = await handler.Handle(new GetSalesHistoryQuery(null, null, null, null), CancellationToken.None);
+        var items = result.Items.ToList();
+
+        var identifiedDto = items.Single(s => s.Id == identifiedSale.Id);
+        var anonymousDto = items.Single(s => s.Id == anonymousSale.Id);
+
+        Assert.Equal(CustomerDocumentType.Cc, identifiedDto.CustomerDocumentType);
+        Assert.Equal("1002003004", identifiedDto.CustomerDocumentNumber);
+
+        Assert.Null(anonymousDto.CustomerDocumentType);
+        Assert.Equal(string.Empty, anonymousDto.CustomerDocumentNumber);
+        Assert.Equal("Consumidor Final", anonymousDto.CustomerName);
+    }
+
     // Bug reportado por frontend: un filtro de un solo día (from == to, ambos a
     // medianoche, como envía un selector de fecha simple) no mostraba ninguna
     // venta, porque el rango resultante medianoche-a-medianoche cubre 0

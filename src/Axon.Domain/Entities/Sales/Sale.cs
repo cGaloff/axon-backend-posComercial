@@ -19,8 +19,26 @@ public class Sale
     public string SaleNumber { get; private set; } = string.Empty;
     public Guid? CustomerId { get; private set; }
     public string CustomerName { get; private set; } = string.Empty;
+    public CustomerDocumentType? CustomerDocumentType { get; private set; }
+    public string CustomerDocumentNumber { get; private set; } = string.Empty;
     public SaleStatus Status { get; private set; }
     public decimal Total { get; private set; }
+
+    // Monto ya convertido (si se ingresó como % se guarda el monto resultante,
+    // no el porcentaje) del descuento aplicado a TODA la venta, repartido
+    // internamente entre los ítems como SaleItem.GeneralDiscountShare. Este
+    // campo es solo para mostrarlo en la factura como una línea propia
+    // ("Descuento general"), separada de los descuentos manuales por producto
+    // — el cálculo real (impuestos, total) ya vive en cada SaleItem.
+    public decimal GeneralDiscountAmount { get; private set; }
+
+    // Null si el descuento general se ingresó como monto fijo (ej. un bono de
+    // $10.000) — en ese caso la factura solo muestra el monto. Si se ingresó
+    // como % (ej. "10% a toda la venta"), este campo guarda ESE porcentaje tal
+    // cual lo dio el cajero, solo para mostrarlo junto al monto en la factura
+    // ("Descuento general (10%)") — no participa en ningún cálculo, el monto
+    // ya convertido en GeneralDiscountAmount es el que se usa siempre.
+    public decimal? GeneralDiscountPercentage { get; private set; }
     public string Notes { get; private set; } = string.Empty;
     public Guid CashRegisterId { get; private set; }
     public Guid CreatedBy { get; private set; }
@@ -45,12 +63,21 @@ public class Sale
     {
     }
 
+    // Consumidor Final es el nombre que se muestra para una venta sin cliente
+    // identificado (cliente ocasional) — se aplica aquí, no en el PDF/frontend,
+    // para que el historial de ventas y la factura muestren siempre el mismo
+    // valor. El documento (CC/NIT), en cambio, no tiene default: si el cliente
+    // no lo da, queda vacío a propósito.
+    public const string DefaultCustomerName = "Consumidor Final";
+
     public static Sale Create(
         Guid cashRegisterId,
         Guid createdBy,
         Guid? customerId = null,
         string? customerName = null,
-        string? notes = null)
+        string? notes = null,
+        CustomerDocumentType? customerDocumentType = null,
+        string? customerDocumentNumber = null)
     {
         var randomSuffix = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
         var saleNumber = $"VTA-{DateTime.UtcNow:yyyyMMdd}-{randomSuffix}";
@@ -60,7 +87,9 @@ public class Sale
             Id = Guid.NewGuid(),
             SaleNumber = saleNumber,
             CustomerId = customerId,
-            CustomerName = customerName ?? string.Empty,
+            CustomerName = string.IsNullOrWhiteSpace(customerName) ? DefaultCustomerName : customerName,
+            CustomerDocumentType = customerDocumentType,
+            CustomerDocumentNumber = customerDocumentNumber ?? string.Empty,
             // Sin pagos todavía, se asume Completed; AddPayment recalcula según los
             // métodos de pago que efectivamente se agreguen (Card/Transfer => Pending).
             Status = SaleStatus.Completed,
@@ -76,6 +105,28 @@ public class Sale
     {
         _items.Add(item);
         Total = _items.Sum(i => i.Subtotal);
+    }
+
+    // Debe llamarse después de agregar todos los ítems, una vez que ya se
+    // repartió (y aplicó) el descuento general entre sus SaleItem.GeneralDiscountShare
+    // — este método solo guarda el monto (y, si vino de ahí, el % original) para
+    // mostrarlo en la factura, no recalcula nada (el Total ya quedó correcto vía
+    // AddItem). percentage es null cuando el descuento general se dio como monto
+    // fijo (no hay % que mostrar).
+    public void SetGeneralDiscountAmount(decimal amount, decimal? percentage = null)
+    {
+        if (amount < 0)
+        {
+            throw new DomainException("El descuento general no puede ser negativo.");
+        }
+
+        if (percentage is < 0 or > 100)
+        {
+            throw new DomainException("El porcentaje del descuento general debe estar entre 0 y 100.");
+        }
+
+        GeneralDiscountAmount = amount;
+        GeneralDiscountPercentage = percentage;
     }
 
     // Venta presencial: Tarjeta/Transferencia se cobran en el momento (datáfono propio
