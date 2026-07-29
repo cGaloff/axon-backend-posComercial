@@ -22,6 +22,13 @@ public class SaleConfiguration : IEntityTypeConfiguration<Sale>
         builder.Property(s => s.CustomerName)
             .HasMaxLength(200);
 
+        builder.Property(s => s.CustomerDocumentType)
+            .HasConversion<string>()
+            .HasMaxLength(10);
+
+        builder.Property(s => s.CustomerDocumentNumber)
+            .HasMaxLength(30);
+
         builder.Property(s => s.Status)
             .HasConversion<string>()
             .IsRequired()
@@ -29,6 +36,13 @@ public class SaleConfiguration : IEntityTypeConfiguration<Sale>
 
         builder.Property(s => s.Total)
             .HasColumnType("decimal(12,2)");
+
+        builder.Property(s => s.GeneralDiscountAmount)
+            .HasColumnType("decimal(12,2)")
+            .HasDefaultValue(0m);
+
+        builder.Property(s => s.GeneralDiscountPercentage)
+            .HasColumnType("decimal(9,4)");
 
         builder.OwnsMany(s => s.Payments, payments =>
         {
@@ -80,6 +94,17 @@ public class SaleConfiguration : IEntityTypeConfiguration<Sale>
 
             items.Property(i => i.Discount)
                 .HasColumnType("decimal(12,2)");
+
+            items.Property(i => i.DiscountPercentage)
+                .HasColumnType("decimal(9,4)");
+
+            items.Property(i => i.GeneralDiscountShare)
+                .HasColumnType("decimal(12,2)")
+                .HasDefaultValue(0m);
+
+            items.Property(i => i.UnitCost)
+                .HasColumnType("decimal(12,2)")
+                .HasDefaultValue(0m);
 
             items.Property(i => i.Subtotal)
                 .HasColumnType("decimal(12,2)");

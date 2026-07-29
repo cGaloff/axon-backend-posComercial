@@ -12,6 +12,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Persistence\Scripts\tenant_schema_template.sql" />
     <EmbeddedResource Include="Persistence\Scripts\tenant_seed.sql" />
+    <EmbeddedResource Include="Assets\CascadiaMono.ttf" />
   </ItemGroup>
 
   <ItemGroup>

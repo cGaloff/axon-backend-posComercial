@@ -97,24 +97,116 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
             createdBy,
             request.CustomerId,
             request.CustomerName,
-            request.Notes);
+            request.Notes,
+            request.CustomerDocumentType,
+            request.CustomerDocumentNumber);
 
         var movements = new List<InventoryMovement>();
         var alerts = new List<StockAlert>();
 
-        foreach (var item in request.Items)
+        // Descuento manual por producto: monto fijo (Discount) o % (DiscountPercentage,
+        // convertido aquí al monto equivalente sobre el precio de ESTE producto). Se
+        // resuelve antes de todo lo demás porque el reparto del descuento general (más
+        // abajo) necesita el monto ya concreto de cada línea, no importa cómo se dio.
+        var itemDiscountAmounts = request.Items
+            .Select(item =>
+            {
+                if (item.Discount.HasValue)
+                {
+                    return item.Discount.Value;
+                }
+
+                if (item.DiscountPercentage.HasValue)
+                {
+                    var grossSubtotal = productsById[item.ProductId].Price * item.Quantity;
+                    return grossSubtotal * item.DiscountPercentage.Value / 100;
+                }
+
+                return 0m;
+            })
+            .ToList();
+
+        // Descuento general de la venta: se reparte proporcionalmente al subtotal
+        // de cada línea YA con su descuento manual descontado (preGeneralSubtotal),
+        // así que si un ítem ya trae un descuento manual grande, recibe una porción
+        // menor del descuento general (no se "descuenta dos veces" sobre lo mismo).
+        // El residuo de redondeo se asigna a la última línea para que la suma de
+        // las porciones cuadre exacto con el monto total.
+        var preGeneralSubtotals = request.Items
+            .Select((item, i) => productsById[item.ProductId].Price * item.Quantity - itemDiscountAmounts[i])
+            .ToList();
+
+        var totalPreGeneralSubtotal = preGeneralSubtotals.Sum();
+
+        decimal generalDiscountAmount;
+
+        if (request.SaleDiscountAmount.HasValue)
         {
+            generalDiscountAmount = request.SaleDiscountAmount.Value;
+        }
+        else if (request.SaleDiscountPercentage.HasValue)
+        {
+            generalDiscountAmount = totalPreGeneralSubtotal * request.SaleDiscountPercentage.Value / 100;
+        }
+        else
+        {
+            generalDiscountAmount = 0;
+        }
+
+        if (generalDiscountAmount > totalPreGeneralSubtotal)
+        {
+            throw new DomainException("El descuento general no puede ser mayor al subtotal de la venta.");
+        }
+
+        // Mismo tope de descuento por rol que ya aplica por producto (ver más
+        // abajo), pero evaluado sobre el % efectivo del descuento general.
+        if (_currentUserContext.MaxDiscountPercentage.HasValue && generalDiscountAmount > 0)
+        {
+            var generalDiscountPercentage = totalPreGeneralSubtotal > 0
+                ? generalDiscountAmount / totalPreGeneralSubtotal * 100
+                : 0m;
+
+            if (generalDiscountPercentage > _currentUserContext.MaxDiscountPercentage.Value)
+            {
+                throw new DomainException(
+                    $"El descuento general de {generalDiscountPercentage:0.##}% supera el tope permitido para su rol ({_currentUserContext.MaxDiscountPercentage.Value:0.##}%). Se requiere autorización de un rol con mayor tope.");
+            }
+        }
+
+        var generalDiscountShares = new decimal[request.Items.Count];
+        var allocatedGeneralDiscount = 0m;
+
+        for (var i = 0; i < request.Items.Count; i++)
+        {
+            if (i == request.Items.Count - 1)
+            {
+                generalDiscountShares[i] = generalDiscountAmount - allocatedGeneralDiscount;
+                continue;
+            }
+
+            var share = totalPreGeneralSubtotal > 0
+                ? generalDiscountAmount * (preGeneralSubtotals[i] / totalPreGeneralSubtotal)
+                : 0m;
+
+            generalDiscountShares[i] = share;
+            allocatedGeneralDiscount += share;
+        }
+
+        for (var i = 0; i < request.Items.Count; i++)
+        {
+            var item = request.Items[i];
             var product = productsById[item.ProductId];
+            var itemDiscountAmount = itemDiscountAmounts[i];
 
             // Tope de descuento por rol (Matriz de Roles y Permisos v2, regla
             // transversal C): null = sin tope (Administrador/Propietario). Se valida
             // aquí, en Application, porque depende de QUIÉN hace la venta, no es un
             // invariante propio de SaleItem (el mismo descuento puede ser válido para
             // un Administrador e inválido para un Cajero).
-            if (_currentUserContext.MaxDiscountPercentage.HasValue && item.Discount > 0)
+            if (_currentUserContext.MaxDiscountPercentage.HasValue && itemDiscountAmount > 0)
             {
                 var grossSubtotal = product.Price * item.Quantity;
-                var discountPercentage = grossSubtotal > 0 ? item.Discount / grossSubtotal * 100 : 0m;
+                var discountPercentage = grossSubtotal > 0 ? itemDiscountAmount / grossSubtotal * 100 : 0m;
 
                 if (discountPercentage > _currentUserContext.MaxDiscountPercentage.Value)
                 {
@@ -139,7 +231,10 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
                 productSku: product.Sku,
                 unitPrice: product.Price,
                 quantity: item.Quantity,
-                discount: item.Discount,
+                discount: itemDiscountAmount,
+                discountPercentage: item.DiscountPercentage,
+                generalDiscountShare: generalDiscountShares[i],
+                unitCost: product.Cost,
                 appliedTaxes: appliedTaxes);
 
             sale.AddItem(saleItem);
@@ -161,6 +256,8 @@ public class ProcessSaleCommandHandler : IRequestHandler<ProcessSaleCommand, Pro
                 alerts.Add(StockAlert.Create(product.Id, warehouse.Id, product.Stock, product.MinStock));
             }
         }
+
+        sale.SetGeneralDiscountAmount(generalDiscountAmount, request.SaleDiscountPercentage);
 
         var cashMovements = new List<CashMovement>();
 

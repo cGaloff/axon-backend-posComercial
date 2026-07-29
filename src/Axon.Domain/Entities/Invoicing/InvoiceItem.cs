@@ -16,6 +16,9 @@ public class InvoiceItem
     public decimal UnitPrice { get; private set; }
     public int Quantity { get; private set; }
     public decimal Discount { get; private set; }
+    public decimal? DiscountPercentage { get; private set; }
+    public decimal GeneralDiscountShare { get; private set; }
+    public decimal UnitCost { get; private set; }
     public decimal Subtotal { get; private set; }
     public decimal SubtotalBase { get; private set; }
 
@@ -33,6 +36,9 @@ public class InvoiceItem
         decimal unitPrice,
         int quantity,
         decimal discount,
+        decimal? discountPercentage,
+        decimal generalDiscountShare,
+        decimal unitCost,
         decimal subtotal,
         decimal subtotalBase,
         IReadOnlyList<InvoiceItemTaxSnapshot> taxes)
@@ -54,6 +60,9 @@ public class InvoiceItem
             UnitPrice = unitPrice,
             Quantity = quantity,
             Discount = discount,
+            DiscountPercentage = discountPercentage,
+            GeneralDiscountShare = generalDiscountShare,
+            UnitCost = unitCost,
             Subtotal = subtotal,
             SubtotalBase = subtotalBase
         };
@@ -76,6 +85,9 @@ public record InvoiceItemSnapshot(
     decimal UnitPrice,
     int Quantity,
     decimal Discount,
+    decimal? DiscountPercentage,
+    decimal GeneralDiscountShare,
+    decimal UnitCost,
     decimal Subtotal,
     decimal SubtotalBase,
     IReadOnlyList<InvoiceItemTaxSnapshot> Taxes);

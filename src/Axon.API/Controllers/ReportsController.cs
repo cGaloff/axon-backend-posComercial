@@ -57,4 +57,16 @@ public class ReportsController : ControllerBase
 
         return Ok(ApiResponse<SalesByEmployeeReportDto>.Ok(result));
     }
+
+    // Mismo permiso que inventory-summary (no sales-summary): el costo de
+    // producto es información más sensible que el precio de venta, y hasta
+    // ahora solo se exponía a quien tiene acceso a inventario.
+    [HttpGet("profit")]
+    [RequirePermission("reports:read", "inventory:read")]
+    public async Task<IActionResult> GetProfit([FromQuery] DateTime fromDate, [FromQuery] DateTime toDate)
+    {
+        var result = await _mediator.Send(new GetProfitReportQuery(fromDate, toDate));
+
+        return Ok(ApiResponse<ProfitReportDto>.Ok(result));
+    }
 }
