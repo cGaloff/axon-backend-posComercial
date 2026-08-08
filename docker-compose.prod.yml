@@ -42,6 +42,7 @@ services:
       Jwt__ExpiresInMinutes: ${JWT_EXPIRES_MINUTES}
       Jwt__RefreshTokenExpiresInDays: ${JWT_REFRESH_DAYS}
       Webhooks__PaymentSecret: ${WEBHOOK_PAYMENT_SECRET:?define WEBHOOK_PAYMENT_SECRET en .env}
+      Provisioning__Secret: ${PROVISIONING_SECRET:?define PROVISIONING_SECRET en .env (protege POST /api/tenants/register)}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:?define CORS_ALLOWED_ORIGINS en .env (dominios del frontend)}
       Email__SmtpHost: ${EMAIL_SMTP_HOST}
       Email__SmtpPort: ${EMAIL_SMTP_PORT}
