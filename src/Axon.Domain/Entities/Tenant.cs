@@ -11,12 +11,15 @@ public class Tenant
     public string Plan { get; private set; } = string.Empty;
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }
+    public string? OwnerEmail { get; private set; }
+    public DateTime? SubscriptionExpiresAt { get; private set; }
+    public DateTime? LastTrialReminderSentAt { get; private set; }
 
     private Tenant()
     {
     }
 
-    public static Tenant Create(string slug, string businessName, string plan)
+    public static Tenant Create(string slug, string businessName, string plan, string ownerEmail, DateTime subscriptionExpiresAt)
     {
         if (string.IsNullOrWhiteSpace(slug))
         {
@@ -36,7 +39,29 @@ public class Tenant
             Plan = plan,
             SchemaName = $"tenant_{Guid.NewGuid().ToString("N")[..8]}",
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            OwnerEmail = ownerEmail,
+            SubscriptionExpiresAt = subscriptionExpiresAt
         };
+    }
+
+    public void Suspend()
+    {
+        IsActive = false;
+    }
+
+    // Reactiva un tenant bloqueado por vencimiento (o lo renueva antes de
+    // vencer) y limpia el contador de recordatorios: el próximo ciclo de 7
+    // días debe poder volver a avisar desde cero.
+    public void ExtendSubscription(DateTime newExpiresAt)
+    {
+        SubscriptionExpiresAt = newExpiresAt;
+        IsActive = true;
+        LastTrialReminderSentAt = null;
+    }
+
+    public void MarkTrialReminderSent()
+    {
+        LastTrialReminderSentAt = DateTime.UtcNow;
     }
 }

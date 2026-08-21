@@ -1,9 +1,9 @@
 using Axon.Application.Interfaces;
 using Axon.Domain.Entities;
 using Axon.Domain.Exceptions;
-using Axon.Domain.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Axon.Application.Tenants.Commands;
@@ -12,18 +12,18 @@ public class RegisterTenantCommandHandler : IRequestHandler<RegisterTenantComman
 {
     private readonly IMasterDbContext _appDbContext;
     private readonly ITenantSchemaInitializer _schemaInitializer;
-    private readonly IPasswordHasher _passwordHasher;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<RegisterTenantCommandHandler> _logger;
 
     public RegisterTenantCommandHandler(
         IMasterDbContext appDbContext,
         ITenantSchemaInitializer schemaInitializer,
-        IPasswordHasher passwordHasher,
+        IConfiguration configuration,
         ILogger<RegisterTenantCommandHandler> logger)
     {
         _appDbContext = appDbContext;
         _schemaInitializer = schemaInitializer;
-        _passwordHasher = passwordHasher;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -36,7 +36,11 @@ public class RegisterTenantCommandHandler : IRequestHandler<RegisterTenantComman
             throw new DomainException("El slug ya está en uso");
         }
 
-        var tenant = Tenant.Create(request.Slug, request.BusinessName, request.Plan);
+        var trialDays = int.TryParse(_configuration["Subscription:TrialDays"], out var days) ? days : 7;
+
+        var tenant = Tenant.Create(
+            request.Slug, request.BusinessName, request.Plan,
+            request.OwnerEmail, DateTime.UtcNow.AddDays(trialDays));
 
         _appDbContext.Tenants.Add(tenant);
         await _appDbContext.SaveChangesAsync(cancellationToken);
@@ -55,12 +59,10 @@ public class RegisterTenantCommandHandler : IRequestHandler<RegisterTenantComman
                 throw new DomainException("No se encontró el rol 'Propietario' en el schema del tenant recién creado");
             }
 
-            var passwordHash = _passwordHasher.Hash(request.OwnerPassword);
-
             var owner = User.Create(
                 $"{request.BusinessName} (Propietario)",
                 request.OwnerEmail,
-                passwordHash,
+                request.OwnerPasswordHash,
                 propietarioRoleId);
 
             var insertUserSql =

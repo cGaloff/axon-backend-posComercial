@@ -35,6 +35,7 @@ public interface IApplicationDbContext
     DbSet<SupplierPayment> SupplierPayments { get; }
     DbSet<ProductSupplier> ProductSuppliers { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<LoginAttempt> LoginAttempts { get; }
 

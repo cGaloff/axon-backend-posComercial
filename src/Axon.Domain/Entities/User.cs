@@ -94,6 +94,17 @@ public class User
         PasswordHash = newHash;
     }
 
+    // Reset por email: a diferencia de ChangePassword (cambio de admin/propio,
+    // ya autenticado), acá probar la identidad por email es una señal fuerte,
+    // así que además de la contraseña se limpia cualquier bloqueo por intentos
+    // fallidos previo.
+    public void ResetPassword(string newHash)
+    {
+        PasswordHash = newHash;
+        FailedLoginAttempts = 0;
+        LockedUntil = null;
+    }
+
     public void SetPin(string pinHash)
     {
         if (string.IsNullOrWhiteSpace(pinHash))

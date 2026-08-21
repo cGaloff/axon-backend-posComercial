@@ -43,6 +43,13 @@ services:
       Jwt__RefreshTokenExpiresInDays: ${JWT_REFRESH_DAYS}
       Webhooks__PaymentSecret: ${WEBHOOK_PAYMENT_SECRET:?define WEBHOOK_PAYMENT_SECRET en .env}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:?define CORS_ALLOWED_ORIGINS en .env (dominios del frontend)}
+      Frontend__ResetPasswordUrl: ${FRONTEND_RESET_PASSWORD_URL:?define FRONTEND_RESET_PASSWORD_URL en .env (pantalla del frontend que procesa el link de recuperación)}
+      Auth__PasswordResetTokenExpiresInMinutes: ${PASSWORD_RESET_TOKEN_MINUTES:-30}
+      Auth__RegistrationCodeExpiresInMinutes: ${REGISTRATION_CODE_MINUTES:-15}
+      Subscription__TrialDays: ${SUBSCRIPTION_TRIAL_DAYS:-7}
+      Subscription__ReminderDaysBeforeExpiry: ${SUBSCRIPTION_REMINDER_DAYS:-5}
+      Subscription__CheckIntervalMinutes: ${SUBSCRIPTION_CHECK_INTERVAL_MINUTES:-60}
+      Subscription__ExtensionSecret: ${SUBSCRIPTION_EXTENSION_SECRET:?define SUBSCRIPTION_EXTENSION_SECRET en .env}
       Email__SmtpHost: ${EMAIL_SMTP_HOST}
       Email__SmtpPort: ${EMAIL_SMTP_PORT}
       Email__FromAddress: ${EMAIL_FROM_ADDRESS}

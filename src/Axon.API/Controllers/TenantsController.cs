@@ -22,7 +22,7 @@ public class TenantsController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterTenantRequest request)
     {
-        var command = new RegisterTenantCommand(
+        var command = new RequestTenantRegistrationCommand(
             request.BusinessName,
             request.Slug,
             request.OwnerEmail,
@@ -31,6 +31,18 @@ public class TenantsController : ControllerBase
 
         var result = await _mediator.Send(command);
 
-        return Ok(ApiResponse<RegisterTenantResult>.Ok(result, "Tenant registrado exitosamente"));
+        return Ok(ApiResponse<RequestTenantRegistrationResult>.Ok(
+            result, "Te enviamos un código de verificación a tu correo. Confirmalo para activar tu cuenta."));
+    }
+
+    [HttpPost("register/confirm")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmRegistration(ConfirmTenantRegistrationRequest request)
+    {
+        var command = new ConfirmTenantRegistrationCommand(request.PendingRegistrationId, request.Code);
+
+        var result = await _mediator.Send(command);
+
+        return Ok(ApiResponse<RegisterTenantResult>.Ok(result, "Cuenta creada exitosamente"));
     }
 }

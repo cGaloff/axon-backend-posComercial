@@ -74,6 +74,8 @@ public class TenantDbContext : DbContext, IApplicationDbContext
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     public DbSet<LoginAttempt> LoginAttempts => Set<LoginAttempt>();
@@ -132,6 +134,7 @@ public class TenantDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new SupplierPaymentConfiguration());
         modelBuilder.ApplyConfiguration(new ProductSupplierConfiguration());
         modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
+        modelBuilder.ApplyConfiguration(new PasswordResetTokenConfiguration());
         modelBuilder.ApplyConfiguration(new AuditLogConfiguration());
         modelBuilder.ApplyConfiguration(new LoginAttemptConfiguration());
     }

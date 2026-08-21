@@ -22,6 +22,73 @@ namespace Axon.Infrastructure.Persistence.Migrations.MasterDb
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Axon.Domain.Entities.PendingTenantRegistration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BusinessName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("business_name");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code_hash");
+
+                    b.Property<DateTime?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<int>("FailedAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_attempts");
+
+                    b.Property<string>("OwnerEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("owner_email");
+
+                    b.Property<string>("OwnerPasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("owner_password_hash");
+
+                    b.Property<string>("Plan")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("plan");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id")
+                        .HasName("pk_pending_tenant_registrations");
+
+                    b.HasIndex("OwnerEmail")
+                        .HasDatabaseName("ix_pending_tenant_registrations_owner_email");
+
+                    b.ToTable("pending_tenant_registrations", "public");
+                });
+
             modelBuilder.Entity("Axon.Domain.Entities.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -47,6 +114,15 @@ namespace Axon.Infrastructure.Persistence.Migrations.MasterDb
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
+                    b.Property<DateTime?>("LastTrialReminderSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_trial_reminder_sent_at");
+
+                    b.Property<string>("OwnerEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("owner_email");
+
                     b.Property<string>("Plan")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -66,6 +142,10 @@ namespace Axon.Infrastructure.Persistence.Migrations.MasterDb
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("slug");
+
+                    b.Property<DateTime?>("SubscriptionExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("subscription_expires_at");
 
                     b.HasKey("Id")
                         .HasName("pk_tenants");

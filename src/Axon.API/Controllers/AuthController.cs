@@ -49,4 +49,24 @@ public class AuthController : ControllerBase
 
         return Ok(ApiResponse<string>.Ok("ok", "Sesión cerrada"));
     }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+    {
+        await _mediator.Send(new ForgotPasswordCommand(request.Email, request.TenantSlug));
+
+        // Mensaje siempre igual, exista o no el email: distinguirlo permitiría
+        // usar este endpoint para enumerar correos registrados.
+        return Ok(ApiResponse<string>.Ok("ok", "Si el correo existe, se envió un enlace de recuperación."));
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+    {
+        await _mediator.Send(new ResetPasswordCommand(request.Token, request.NewPassword, request.TenantSlug));
+
+        return Ok(ApiResponse<string>.Ok("ok", "Contraseña actualizada"));
+    }
 }

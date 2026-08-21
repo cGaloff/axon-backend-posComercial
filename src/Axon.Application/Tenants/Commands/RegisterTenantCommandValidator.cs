@@ -22,9 +22,8 @@ public class RegisterTenantCommandValidator : AbstractValidator<RegisterTenantCo
             .NotEmpty()
             .EmailAddress();
 
-        RuleFor(x => x.OwnerPassword)
-            .NotEmpty()
-            .MinimumLength(8);
+        RuleFor(x => x.OwnerPasswordHash)
+            .NotEmpty();
 
         RuleFor(x => x.Plan)
             .NotEmpty()

@@ -477,6 +477,17 @@ CREATE TABLE {SCHEMA_NAME}.refresh_tokens (
 
 CREATE INDEX idx_refresh_tokens_user ON {SCHEMA_NAME}.refresh_tokens (user_id);
 
+CREATE TABLE {SCHEMA_NAME}.password_reset_tokens (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES {SCHEMA_NAME}.users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    used_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_password_reset_tokens_user ON {SCHEMA_NAME}.password_reset_tokens (user_id);
+
 -- Registro de auditoría inmutable (Matriz de Roles y Permisos v2, regla A): no
 -- hay UPDATE/DELETE en el código de la aplicación sobre esta tabla, ni
 -- siquiera para el Propietario — solo INSERT desde AuditLoggingBehavior y

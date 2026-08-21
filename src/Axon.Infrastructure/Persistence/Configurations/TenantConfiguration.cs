@@ -40,5 +40,8 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 
         builder.Property(t => t.CreatedAt)
             .HasDefaultValueSql("now()");
+
+        builder.Property(t => t.OwnerEmail)
+            .HasMaxLength(256);
     }
 }

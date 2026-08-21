@@ -7,6 +7,7 @@ namespace Axon.Application.Interfaces;
 public interface IMasterDbContext
 {
     DbSet<Tenant> Tenants { get; }
+    DbSet<PendingTenantRegistration> PendingTenantRegistrations { get; }
     DatabaseFacade Database { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

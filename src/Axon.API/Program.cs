@@ -4,7 +4,9 @@ using Axon.API.Middleware;
 using Axon.Application.Auth.Commands;
 using Axon.Application.Common.Behaviors;
 using Axon.Application.Interfaces;
+using Axon.Application.Tenants.Services;
 using Axon.Domain.Interfaces;
+using Axon.Infrastructure.BackgroundServices;
 using Axon.Infrastructure.MultiTenant;
 using Axon.Infrastructure.Persistence;
 using Axon.Infrastructure.Persistence.Repositories;
@@ -109,6 +111,10 @@ builder.Services.AddScoped<ICashSessionRepository, CashSessionRepository>();
 
 // Configuración del tenant
 builder.Services.AddScoped<ITenantConfigRepository, TenantConfigRepository>();
+
+// Suscripciones / vencimiento de prueba gratuita
+builder.Services.AddScoped<ISubscriptionExpirationSweeper, SubscriptionExpirationSweeper>();
+builder.Services.AddHostedService<SubscriptionExpirationBackgroundService>();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSettings["Key"]
