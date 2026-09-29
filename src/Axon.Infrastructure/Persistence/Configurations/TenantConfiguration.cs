@@ -38,6 +38,11 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.IsActive)
             .HasDefaultValue(true);
 
+        // Nullable a propósito: NULL significa "sin vencimiento" y es el valor
+        // con el que quedan los tenants ya existentes tras la migración.
+        builder.Property(t => t.SubscriptionEndsAt)
+            .IsRequired(false);
+
         builder.Property(t => t.CreatedAt)
             .HasDefaultValueSql("now()");
     }

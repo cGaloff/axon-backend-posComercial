@@ -11,6 +11,7 @@ namespace Axon.Application.Auth.Commands;
 public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly IMasterDbContext _masterDbContext;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ITenantContext _tenantContext;
@@ -19,6 +20,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
 
     public LoginCommandHandler(
         IApplicationDbContext dbContext,
+        IMasterDbContext masterDbContext,
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
         ITenantContext tenantContext,
@@ -26,6 +28,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
         IConfiguration configuration)
     {
         _dbContext = dbContext;
+        _masterDbContext = masterDbContext;
         _passwordHasher = passwordHasher;
         _jwtTokenService = jwtTokenService;
         _tenantContext = tenantContext;
@@ -69,6 +72,24 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
             user.RegisterFailedLoginAttempt();
             await RecordAttemptAsync(request.Email, user.Id, success: false, request.IpAddress, cancellationToken);
             throw new DomainException("Credenciales inválidas");
+        }
+
+        // Se verifica aquí además del middleware para que quien inicia sesión
+        // vea el motivo en la pantalla de login y no un 403 suelto en cualquier
+        // petición posterior.
+        //
+        // Va antes de anotar el ingreso: la contraseña era correcta, pero el
+        // acceso no llegó a concederse, y registrarlo como exitoso dejaría en la
+        // auditoría un ingreso que nunca ocurrió.
+        var subscriptionEndsAt = await _masterDbContext.Tenants
+            .AsNoTracking()
+            .Where(t => t.Slug == _tenantContext.TenantSlug)
+            .Select(t => t.SubscriptionEndsAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (subscriptionEndsAt is not null && DateTime.UtcNow > subscriptionEndsAt.Value)
+        {
+            throw new DomainException("Suscripción vencida");
         }
 
         user.RegisterSuccessfulLogin();

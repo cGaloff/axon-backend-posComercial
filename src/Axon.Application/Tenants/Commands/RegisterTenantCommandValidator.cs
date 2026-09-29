@@ -1,10 +1,13 @@
+using Axon.Domain.Entities;
 using FluentValidation;
 
 namespace Axon.Application.Tenants.Commands;
 
 public class RegisterTenantCommandValidator : AbstractValidator<RegisterTenantCommand>
 {
-    private static readonly string[] ValidPlans = { "basic", "pro", "enterprise" };
+    // internal para que el validador del PATCH de suscripción use la misma lista.
+    // La prueba gratis no es un plan aparte: usa "basic" y la gobierna la fecha.
+    internal static readonly string[] ValidPlans = { "basic", "pro", "enterprise" };
 
     public RegisterTenantCommandValidator()
     {
@@ -30,5 +33,13 @@ public class RegisterTenantCommandValidator : AbstractValidator<RegisterTenantCo
             .NotEmpty()
             .Must(plan => ValidPlans.Contains(plan))
             .WithMessage("Plan inválido");
+
+        // Opcional: si no viene, el tenant queda sin vencimiento. Se rechaza una
+        // fecha ya pasada porque el tenant nacería bloqueado, que casi siempre
+        // es un error de quien aprovisiona.
+        RuleFor(x => x.SubscriptionEndsAt)
+            .Must(date => Tenant.NormalizeToUtc(date) > DateTime.UtcNow)
+            .WithMessage("La fecha de vencimiento debe ser futura")
+            .When(x => x.SubscriptionEndsAt.HasValue);
     }
 }

@@ -1,8 +1,9 @@
 namespace Axon.Application.Tenants.Commands;
 
-public record RegisterTenantResult(
+public record UpdateTenantSubscriptionResult(
     Guid TenantId,
-    string SchemaName,
     string Slug,
     string BusinessName,
+    string Plan,
+    bool IsActive,
     DateTime? SubscriptionEndsAt);

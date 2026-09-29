@@ -7,4 +7,5 @@ public record RegisterTenantCommand(
     string Slug,
     string OwnerEmail,
     string OwnerPassword,
-    string Plan) : IRequest<RegisterTenantResult>;
+    string Plan,
+    DateTime? SubscriptionEndsAt = null) : IRequest<RegisterTenantResult>;

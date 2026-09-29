@@ -36,7 +36,7 @@ public class RegisterTenantCommandHandler : IRequestHandler<RegisterTenantComman
             throw new DomainException("El slug ya está en uso");
         }
 
-        var tenant = Tenant.Create(request.Slug, request.BusinessName, request.Plan);
+        var tenant = Tenant.Create(request.Slug, request.BusinessName, request.Plan, request.SubscriptionEndsAt);
 
         _appDbContext.Tenants.Add(tenant);
         await _appDbContext.SaveChangesAsync(cancellationToken);
@@ -93,7 +93,12 @@ public class RegisterTenantCommandHandler : IRequestHandler<RegisterTenantComman
             throw;
         }
 
-        return new RegisterTenantResult(tenant.Id, tenant.SchemaName, tenant.Slug, tenant.BusinessName);
+        return new RegisterTenantResult(
+            tenant.Id,
+            tenant.SchemaName,
+            tenant.Slug,
+            tenant.BusinessName,
+            tenant.SubscriptionEndsAt);
     }
 }
 

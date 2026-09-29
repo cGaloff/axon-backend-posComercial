@@ -24,7 +24,7 @@ RUN apt-get update \
 
 COPY --from=build /app/publish .
 
-ENV ASPNETCORE_URLS=http://+:8080
-EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:18080
+EXPOSE 18080
 
 ENTRYPOINT ["dotnet", "Axon.API.dll"]

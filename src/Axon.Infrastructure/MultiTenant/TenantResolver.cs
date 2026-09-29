@@ -1,10 +1,11 @@
+using Axon.Application.Interfaces;
 using Axon.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Axon.Infrastructure.MultiTenant;
 
-public class TenantResolver
+public class TenantResolver : ITenantCacheInvalidator
 {
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
 
@@ -35,7 +36,7 @@ public class TenantResolver
             return null;
         }
 
-        var tenantInfo = new TenantInfo(tenant.Slug, tenant.SchemaName, tenant.IsActive);
+        var tenantInfo = new TenantInfo(tenant.Slug, tenant.SchemaName, tenant.IsActive, tenant.SubscriptionEndsAt);
 
         if (tenantInfo.IsActive)
         {
@@ -43,5 +44,12 @@ public class TenantResolver
         }
 
         return tenantInfo;
+    }
+
+    // Sin esto, renovar la suscripción no surtiría efecto hasta que expirara la
+    // caché y el cliente seguiría bloqueado varios minutos después de pagar.
+    public void Invalidate(string slug)
+    {
+        _cache.Remove($"tenant_{slug}");
     }
 }
