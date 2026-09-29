@@ -13,9 +13,14 @@ public class LoginCommandHandlerTests
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:RefreshTokenExpiresInDays"] = "7" })
             .Build();
 
-    private static async Task<(LoginCommandHandler Handler, Axon.Infrastructure.Persistence.TenantDbContext DbContext, User User, FakePasswordHasher PasswordHasher)> ArrangeAsync()
+    // `subscriptionEndsAt` null deja el tenant sin vencimiento, que es el caso
+    // de siempre: así los tests que no hablan de suscripción no cambian.
+    private static async Task<(LoginCommandHandler Handler, Axon.Infrastructure.Persistence.TenantDbContext DbContext, User User, FakePasswordHasher PasswordHasher)> ArrangeAsync(
+        DateTime? subscriptionEndsAt = null)
     {
         var dbContext = TestDbContextFactory.Create();
+        var masterDbContext = TestDbContextFactory.CreateMaster();
+        var tenantContext = new FakeTenantContext();
         var passwordHasher = new FakePasswordHasher();
 
         var role = Role.Create("Cajero", "", isSystem: true);
@@ -25,15 +30,45 @@ public class LoginCommandHandlerTests
         dbContext.Users.Add(user);
         await dbContext.SaveChangesAsync();
 
+        masterDbContext.Tenants.Add(
+            Tenant.Create(tenantContext.TenantSlug, "Negocio de prueba", "basic", subscriptionExpiresAt: subscriptionEndsAt));
+        await masterDbContext.SaveChangesAsync();
+
         var handler = new LoginCommandHandler(
             dbContext,
+            masterDbContext,
             passwordHasher,
             new FakeJwtTokenService(),
-            new FakeTenantContext(),
+            tenantContext,
             new FakeUnitOfWork(dbContext),
             BuildConfiguration());
 
         return (handler, dbContext, user, passwordHasher);
+    }
+
+    [Fact]
+    public async Task Handle_WithExpiredSubscription_ThrowsAndDoesNotRecordSuccess()
+    {
+        // La contraseña es correcta, pero la suscripción venció ayer: el acceso
+        // no se concede y la auditoría no debe registrar un ingreso exitoso.
+        var (handler, dbContext, user, _) = await ArrangeAsync(DateTime.UtcNow.AddDays(-1));
+
+        var error = await Assert.ThrowsAsync<DomainException>(() =>
+            handler.Handle(new LoginCommand(user.Email, "correcta123", "test-tenant"), CancellationToken.None));
+
+        Assert.Equal("Suscripción vencida", error.Message);
+        Assert.DoesNotContain(dbContext.LoginAttempts, a => a.Success);
+    }
+
+    [Fact]
+    public async Task Handle_WithSubscriptionEndingLater_Succeeds()
+    {
+        var (handler, _, user, _) = await ArrangeAsync(DateTime.UtcNow.AddDays(3));
+
+        var result = await handler.Handle(
+            new LoginCommand(user.Email, "correcta123", "test-tenant"), CancellationToken.None);
+
+        Assert.NotNull(result);
     }
 
     [Fact]

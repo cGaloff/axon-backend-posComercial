@@ -5,4 +5,5 @@ public record RegisterTenantRequest(
     string Slug,
     string OwnerEmail,
     string OwnerPassword,
-    string Plan);
+    string Plan,
+    DateTime? SubscriptionEndsAt = null);

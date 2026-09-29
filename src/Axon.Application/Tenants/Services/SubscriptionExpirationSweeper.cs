@@ -40,17 +40,27 @@ public class SubscriptionExpirationSweeper : ISubscriptionExpirationSweeper
         {
             var daysRemaining = (tenant.SubscriptionExpiresAt!.Value.Date - today).Days;
 
+            // Los tenants aprovisionados antes de existir OwnerEmail no tienen a
+            // quién avisar: se suspenden igual, pero sin correo.
+            var hasOwnerEmail = !string.IsNullOrWhiteSpace(tenant.OwnerEmail);
+
             if (daysRemaining <= 0)
             {
                 tenant.Suspend();
-                await _emailService.SendTrialExpiredAsync(tenant.OwnerEmail!, tenant.BusinessName);
+
+                if (hasOwnerEmail)
+                {
+                    await _emailService.SendTrialExpiredAsync(tenant.OwnerEmail!, tenant.BusinessName);
+                }
+
                 continue;
             }
 
             // El guard por fecha (no por contador) hace que mandar el
             // recordatorio sea idempotente sin importar cuántas veces corra
             // el barrido en el mismo día.
-            if (daysRemaining <= reminderThreshold &&
+            if (hasOwnerEmail &&
+                daysRemaining <= reminderThreshold &&
                 (tenant.LastTrialReminderSentAt is null || tenant.LastTrialReminderSentAt.Value.Date < today))
             {
                 await _emailService.SendTrialReminderAsync(tenant.OwnerEmail!, tenant.BusinessName, daysRemaining);

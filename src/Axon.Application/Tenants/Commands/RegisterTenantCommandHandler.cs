@@ -36,11 +36,17 @@ public class RegisterTenantCommandHandler : IRequestHandler<RegisterTenantComman
             throw new DomainException("El slug ya está en uso");
         }
 
-        var trialDays = int.TryParse(_configuration["Subscription:TrialDays"], out var days) ? days : 7;
+        var subscriptionExpiresAt = request.SubscriptionExpiresAt;
+
+        if (request.StartTrial)
+        {
+            var trialDays = int.TryParse(_configuration["Subscription:TrialDays"], out var days) ? days : 7;
+            subscriptionExpiresAt = DateTime.UtcNow.AddDays(trialDays);
+        }
 
         var tenant = Tenant.Create(
             request.Slug, request.BusinessName, request.Plan,
-            request.OwnerEmail, DateTime.UtcNow.AddDays(trialDays));
+            request.OwnerEmail, subscriptionExpiresAt);
 
         _appDbContext.Tenants.Add(tenant);
         await _appDbContext.SaveChangesAsync(cancellationToken);
@@ -95,7 +101,12 @@ public class RegisterTenantCommandHandler : IRequestHandler<RegisterTenantComman
             throw;
         }
 
-        return new RegisterTenantResult(tenant.Id, tenant.SchemaName, tenant.Slug, tenant.BusinessName);
+        return new RegisterTenantResult(
+            tenant.Id,
+            tenant.SchemaName,
+            tenant.Slug,
+            tenant.BusinessName,
+            tenant.SubscriptionExpiresAt);
     }
 }
 

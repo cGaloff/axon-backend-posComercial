@@ -9,7 +9,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: axon_postgres
+    container_name: axon_pymes_psql
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -27,14 +27,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: axon_api
+    container_name: axon_pospymes_api
     restart: always
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_URLS: http://+:18080
       ConnectionStrings__MasterDb: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       Jwt__Key: ${JWT_KEY:?define JWT_KEY en .env (min 32 chars)}
       Jwt__Issuer: ${JWT_ISSUER}
@@ -42,6 +42,7 @@ services:
       Jwt__ExpiresInMinutes: ${JWT_EXPIRES_MINUTES}
       Jwt__RefreshTokenExpiresInDays: ${JWT_REFRESH_DAYS}
       Webhooks__PaymentSecret: ${WEBHOOK_PAYMENT_SECRET:?define WEBHOOK_PAYMENT_SECRET en .env}
+      Provisioning__Secret: ${PROVISIONING_SECRET:?define PROVISIONING_SECRET en .env (protege POST /api/tenants/register)}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:?define CORS_ALLOWED_ORIGINS en .env (dominios del frontend)}
       Frontend__ResetPasswordUrl: ${FRONTEND_RESET_PASSWORD_URL:?define FRONTEND_RESET_PASSWORD_URL en .env (pantalla del frontend que procesa el link de recuperación)}
       Auth__PasswordResetTokenExpiresInMinutes: ${PASSWORD_RESET_TOKEN_MINUTES:-30}
@@ -58,7 +59,18 @@ services:
       Email__Password: ${EMAIL_PASSWORD}
     ports:
       # Solo localhost del host; Nginx hace el proxy hacia aquí. No expuesto a internet.
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:18080:18080"
+    networks:
+      - default
+      # Red compartida con el backend de facturación, que llega a este servicio
+      # como http://axon_pospymes_api:18080 para dar de alta empresas. Si no se
+      # declara acá, `docker compose up` recrea el contenedor SIN esta red y el
+      # aprovisionamiento falla con error de conexión.
+      - axon_net
 
 volumes:
   axon_postgres_data:
+
+networks:
+  axon_net:
+    external: true
