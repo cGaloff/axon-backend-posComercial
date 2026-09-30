@@ -46,6 +46,7 @@ services:
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:?define CORS_ALLOWED_ORIGINS en .env (dominios del frontend)}
       Frontend__ResetPasswordUrl: ${FRONTEND_RESET_PASSWORD_URL:?define FRONTEND_RESET_PASSWORD_URL en .env (pantalla del frontend que procesa el link de recuperación)}
       Auth__PasswordResetTokenExpiresInMinutes: ${PASSWORD_RESET_TOKEN_MINUTES:-30}
+      Registration__SelfServiceEnabled: ${SELF_SERVICE_REGISTRATION_ENABLED:-false}
       Auth__RegistrationCodeExpiresInMinutes: ${REGISTRATION_CODE_MINUTES:-15}
       Subscription__TrialDays: ${SUBSCRIPTION_TRIAL_DAYS:-7}
       Subscription__ReminderDaysBeforeExpiry: ${SUBSCRIPTION_REMINDER_DAYS:-5}

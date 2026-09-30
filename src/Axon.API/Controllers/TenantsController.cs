@@ -30,7 +30,11 @@ public class TenantsController : ControllerBase
         // - Con X-Provisioning-Secret: alta inmediata desde pagos, con la fecha
         //   de corte que mande (null = sin vencimiento).
         // - Sin el header: auto-registro público con prueba gratis, que exige
-        //   verificar el email antes de crear el tenant.
+        //   verificar el email antes de crear el tenant. Solo si
+        //   Registration:SelfServiceEnabled está activo: hoy las altas y las
+        //   pruebas gratis las gobierna el backend de pagos, y dejarlo abierto
+        //   permitiría crear empresas saltándose su control de una prueba por
+        //   cliente.
         // Un header presente pero incorrecto es 401 y no cae al auto-registro,
         // para que un secreto mal configurado en pagos no pase desapercibido.
         if (Request.Headers.ContainsKey(ProvisioningSecretHeader))
@@ -53,6 +57,11 @@ public class TenantsController : ControllerBase
             return Ok(ApiResponse<RegisterTenantResult>.Ok(provisioned, "Tenant registrado exitosamente"));
         }
 
+        if (!IsSelfServiceRegistrationEnabled())
+        {
+            return Unauthorized();
+        }
+
         var command = new RequestTenantRegistrationCommand(
             request.BusinessName,
             request.Slug,
@@ -70,6 +79,11 @@ public class TenantsController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> ConfirmRegistration(ConfirmTenantRegistrationRequest request)
     {
+        if (!IsSelfServiceRegistrationEnabled())
+        {
+            return Unauthorized();
+        }
+
         var command = new ConfirmTenantRegistrationCommand(request.PendingRegistrationId, request.Code);
 
         var result = await _mediator.Send(command);
@@ -98,6 +112,11 @@ public class TenantsController : ControllerBase
         }
 
         return Ok(ApiResponse<UpdateTenantSubscriptionResult>.Ok(result, "Suscripción actualizada exitosamente"));
+    }
+
+    private bool IsSelfServiceRegistrationEnabled()
+    {
+        return bool.TryParse(_configuration["Registration:SelfServiceEnabled"], out var enabled) && enabled;
     }
 
     private bool HasValidProvisioningSecret()
