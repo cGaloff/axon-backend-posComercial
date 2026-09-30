@@ -89,6 +89,7 @@ builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
 builder.Services.AddScoped<TenantResolver>();
+builder.Services.AddScoped<ITenantCacheInvalidator>(sp => sp.GetRequiredService<TenantResolver>());
 builder.Services.AddScoped<TenantSchemaInitializer>();
 builder.Services.AddScoped<ITenantSchemaInitializer>(sp => sp.GetRequiredService<TenantSchemaInitializer>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

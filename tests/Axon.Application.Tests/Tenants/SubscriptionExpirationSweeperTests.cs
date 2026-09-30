@@ -109,4 +109,21 @@ public class SubscriptionExpirationSweeperTests
         Assert.True(updated.IsActive);
         Assert.Empty(emailService.TrialExpiredEmails);
     }
+
+    [Fact]
+    public async Task SweepAsync_WithExpiredTenantWithoutOwnerEmail_SuspendsWithoutEmail()
+    {
+        // Tenants aprovisionados antes de existir OwnerEmail (los de prod).
+        var (sweeper, dbContext, emailService) = Arrange();
+        var tenant = Tenant.Create("sin-correo", "Sin Correo SA", "basic", subscriptionExpiresAt: DateTime.UtcNow.AddDays(-1));
+        var porVencer = Tenant.Create("sin-correo-2", "Sin Correo Dos SA", "basic", subscriptionExpiresAt: DateTime.UtcNow.AddDays(2));
+        dbContext.Tenants.AddRange(tenant, porVencer);
+        await dbContext.SaveChangesAsync();
+
+        await sweeper.SweepAsync(CancellationToken.None);
+
+        Assert.False(dbContext.Tenants.Single(t => t.Id == tenant.Id).IsActive);
+        Assert.True(dbContext.Tenants.Single(t => t.Id == porVencer.Id).IsActive);
+        Assert.Empty(emailService.TrialExpiredEmails);
+    }
 }

@@ -27,7 +27,8 @@ public class TenantResolutionMiddleware
     {
         var path = context.Request.Path.Value ?? string.Empty;
 
-        if (ExcludedPaths.Any(excluded => path.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)))
+        if (ExcludedPaths.Any(excluded => path.StartsWith(excluded, StringComparison.OrdinalIgnoreCase)) ||
+            IsSubscriptionEndpoint(path))
         {
             await _next(context);
             return;
@@ -58,9 +59,28 @@ public class TenantResolutionMiddleware
             return;
         }
 
+        // El corte se decide aquí y no en la landing: si su cron falla, el
+        // acceso se bloquea igual. Mensaje distinto al de suspensión para que
+        // el cliente sepa que basta con renovar.
+        if (tenant.IsSubscriptionExpired(DateTime.UtcNow))
+        {
+            await WriteResponseAsync(context, StatusCodes.Status403Forbidden,
+                ApiResponse<object>.Fail("Suscripción vencida."));
+            return;
+        }
+
         tenantContext.SetTenant(tenant.Slug, tenant.SchemaName);
 
         await _next(context);
+    }
+
+    // PATCH /api/tenants/{slug}/subscription lleva el slug en la ruta y se
+    // autentica con el secreto de aprovisionamiento. Además tiene que poder
+    // renovar un tenant ya vencido, así que no puede pasar por este filtro.
+    private static bool IsSubscriptionEndpoint(string path)
+    {
+        return path.StartsWith("/api/tenants/", StringComparison.OrdinalIgnoreCase) &&
+               path.EndsWith("/subscription", StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task WriteResponseAsync(HttpContext context, int statusCode, ApiResponse<object> response)

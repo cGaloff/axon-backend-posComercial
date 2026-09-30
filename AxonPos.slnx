@@ -6,6 +6,7 @@
     <Project Path="src/Axon.Infrastructure/Axon.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Axon.API.Tests/Axon.API.Tests.csproj" />
     <Project Path="tests/Axon.Application.Tests/Axon.Application.Tests.csproj" />
     <Project Path="tests/Axon.Domain.Tests/Axon.Domain.Tests.csproj" />
   </Folder>

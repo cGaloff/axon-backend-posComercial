@@ -15,4 +15,15 @@ public static class TestDbContextFactory
 
         return new TenantDbContext(options, new FakeTenantContext());
     }
+
+    // La base maestra guarda los tenants, y con ellos la fecha de vencimiento
+    // de la suscripción que el login verifica antes de entregar el token.
+    public static AppDbContext CreateMaster()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        return new AppDbContext(options);
+    }
 }

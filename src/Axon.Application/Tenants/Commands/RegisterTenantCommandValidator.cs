@@ -4,7 +4,10 @@ namespace Axon.Application.Tenants.Commands;
 
 public class RegisterTenantCommandValidator : AbstractValidator<RegisterTenantCommand>
 {
-    private static readonly string[] ValidPlans = { "basic", "pro", "enterprise" };
+    // internal para que los validadores de aprovisionamiento y del PATCH de
+    // suscripción usen la misma lista.
+    // La prueba gratis no es un plan aparte: usa "basic" y la gobierna la fecha.
+    internal static readonly string[] ValidPlans = { "basic", "pro", "enterprise" };
 
     public RegisterTenantCommandValidator()
     {
