@@ -1,6 +1,6 @@
 namespace Axon.Infrastructure.MultiTenant;
 
-public record TenantInfo(string Slug, string SchemaName, bool IsActive, DateTime? SubscriptionExpiresAt)
+public record TenantInfo(string Slug, string SchemaName, bool IsActive, DateTime? SubscriptionExpiresAt, string BusinessName = "")
 {
     public bool IsSubscriptionExpired(DateTime utcNow)
     {

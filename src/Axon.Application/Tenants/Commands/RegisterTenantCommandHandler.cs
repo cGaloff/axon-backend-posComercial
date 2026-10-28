@@ -40,13 +40,13 @@ public class RegisterTenantCommandHandler : IRequestHandler<RegisterTenantComman
 
         if (request.StartTrial)
         {
-            var trialDays = int.TryParse(_configuration["Subscription:TrialDays"], out var days) ? days : 7;
+            var trialDays = int.TryParse(_configuration["Subscription:TrialDays"], out var days) ? days : 5;
             subscriptionExpiresAt = DateTime.UtcNow.AddDays(trialDays);
         }
 
         var tenant = Tenant.Create(
             request.Slug, request.BusinessName, request.Plan,
-            request.OwnerEmail, subscriptionExpiresAt);
+            request.OwnerEmail, subscriptionExpiresAt, isTrial: request.StartTrial);
 
         _appDbContext.Tenants.Add(tenant);
         await _appDbContext.SaveChangesAsync(cancellationToken);

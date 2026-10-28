@@ -37,6 +37,19 @@ public class TenantConfigConfiguration : IEntityTypeConfiguration<TenantConfig>
         builder.Property(c => c.IsResponsableIva)
             .HasDefaultValue(false);
 
+        builder.Property(c => c.LegalName)
+            .HasMaxLength(200);
+
+        builder.Property(c => c.City)
+            .HasMaxLength(100);
+
+        builder.Property(c => c.State)
+            .HasMaxLength(100);
+
+        builder.Property(c => c.TaxRegime)
+            .IsRequired()
+            .HasMaxLength(100);
+
         builder.Property(c => c.MermaApprovalThreshold)
             .HasColumnType("decimal(12,2)")
             .HasDefaultValue(0m);

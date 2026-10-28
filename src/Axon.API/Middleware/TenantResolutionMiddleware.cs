@@ -69,7 +69,7 @@ public class TenantResolutionMiddleware
             return;
         }
 
-        tenantContext.SetTenant(tenant.Slug, tenant.SchemaName);
+        tenantContext.SetTenant(tenant.Slug, tenant.SchemaName, tenant.BusinessName);
 
         await _next(context);
     }

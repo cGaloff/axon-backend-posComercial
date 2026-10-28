@@ -36,7 +36,7 @@ public class TenantResolver : ITenantCacheInvalidator
             return null;
         }
 
-        var tenantInfo = new TenantInfo(tenant.Slug, tenant.SchemaName, tenant.IsActive, tenant.SubscriptionExpiresAt);
+        var tenantInfo = new TenantInfo(tenant.Slug, tenant.SchemaName, tenant.IsActive, tenant.SubscriptionExpiresAt, tenant.BusinessName);
 
         if (tenantInfo.IsActive)
         {

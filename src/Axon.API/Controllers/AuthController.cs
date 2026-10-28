@@ -61,6 +61,18 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<string>.Ok("ok", "Si el correo existe, se envió un enlace de recuperación."));
     }
 
+    // Auto-servicio (sin RequirePermission adicional, solo estar autenticado):
+    // cada usuario cambia SU contraseña, la misma para portal web y POS.
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+    {
+        await _mediator.Send(new ChangeOwnPasswordCommand(request.CurrentPassword, request.NewPassword));
+
+        return Ok(ApiResponse<string>.Ok(
+            "ok", "Contraseña actualizada exitosamente tanto para el portal web como para el sistema POS."));
+    }
+
     [HttpPost("reset-password")]
     [AllowAnonymous]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)

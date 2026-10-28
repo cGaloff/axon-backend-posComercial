@@ -16,6 +16,8 @@ public class AppDbContext : DbContext, IMasterDbContext
 
     public DbSet<PendingTenantRegistration> PendingTenantRegistrations => Set<PendingTenantRegistration>();
 
+    public DbSet<SubscriptionExtension> SubscriptionExtensions => Set<SubscriptionExtension>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseSnakeCaseNamingConvention();
@@ -26,5 +28,6 @@ public class AppDbContext : DbContext, IMasterDbContext
     {
         modelBuilder.ApplyConfiguration(new TenantConfiguration());
         modelBuilder.ApplyConfiguration(new PendingTenantRegistrationConfiguration());
+        modelBuilder.ApplyConfiguration(new SubscriptionExtensionConfiguration());
     }
 }

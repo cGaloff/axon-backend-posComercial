@@ -49,8 +49,20 @@ public class SubscriptionController : ControllerBase
             return Unauthorized();
         }
 
-        await _mediator.Send(new ExtendTenantSubscriptionCommand(request.Slug, request.ExtensionDays));
+        var command = new ExtendTenantSubscriptionCommand(
+            request.Slug,
+            request.ExtensionDays,
+            request.BillingCycle,
+            request.Amount,
+            request.TransactionReference);
 
-        return Ok(ApiResponse<string>.Ok("ok", "Suscripción extendida"));
+        var result = await _mediator.Send(command);
+
+        // 200 también en un reintento: la pasarela debe dejar de reintentar.
+        var message = result.AlreadyProcessed
+            ? "La transacción ya había sido aplicada"
+            : "Suscripción extendida";
+
+        return Ok(ApiResponse<ExtendTenantSubscriptionResult>.Ok(result, message));
     }
 }

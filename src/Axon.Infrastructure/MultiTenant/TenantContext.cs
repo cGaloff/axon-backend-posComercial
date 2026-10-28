@@ -25,7 +25,9 @@ public class TenantContext : ITenantContext
     // él debe invocarlo: el resto del código depende de ITenantContext, que no
     // expone este método, así que en la práctica solo quien recibe TenantContext
     // (el tipo concreto) puede reasignar el tenant de la petición.
-    public void SetTenant(string slug, string schemaName)
+    public string BusinessName { get; private set; } = string.Empty;
+
+    public void SetTenant(string slug, string schemaName, string? businessName = null)
     {
         if (string.IsNullOrWhiteSpace(schemaName))
         {
@@ -34,5 +36,6 @@ public class TenantContext : ITenantContext
 
         TenantSlug = slug;
         SchemaName = schemaName;
+        BusinessName = businessName ?? string.Empty;
     }
 }

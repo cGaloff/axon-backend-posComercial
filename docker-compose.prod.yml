@@ -48,7 +48,7 @@ services:
       Auth__PasswordResetTokenExpiresInMinutes: ${PASSWORD_RESET_TOKEN_MINUTES:-30}
       Registration__SelfServiceEnabled: ${SELF_SERVICE_REGISTRATION_ENABLED:-false}
       Auth__RegistrationCodeExpiresInMinutes: ${REGISTRATION_CODE_MINUTES:-15}
-      Subscription__TrialDays: ${SUBSCRIPTION_TRIAL_DAYS:-7}
+      Subscription__TrialDays: ${SUBSCRIPTION_TRIAL_DAYS:-5}
       Subscription__ReminderDaysBeforeExpiry: ${SUBSCRIPTION_REMINDER_DAYS:-5}
       Subscription__CheckIntervalMinutes: ${SUBSCRIPTION_CHECK_INTERVAL_MINUTES:-60}
       Subscription__ExtensionSecret: ${SUBSCRIPTION_EXTENSION_SECRET:?define SUBSCRIPTION_EXTENSION_SECRET en .env}

@@ -43,5 +43,11 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 
         builder.Property(t => t.OwnerEmail)
             .HasMaxLength(256);
+
+        builder.Property(t => t.IsTrial)
+            .HasDefaultValue(false);
+
+        builder.Property(t => t.BillingCycle)
+            .HasMaxLength(20);
     }
 }

@@ -89,12 +89,71 @@ namespace Axon.Infrastructure.Persistence.Migrations.MasterDb
                     b.ToTable("pending_tenant_registrations", "public");
                 });
 
+            modelBuilder.Entity("Axon.Domain.Entities.SubscriptionExtension", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("BillingCycle")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("billing_cycle");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("ExtensionDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("extension_days");
+
+                    b.Property<DateTime>("NewExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("new_expires_at");
+
+                    b.Property<DateTime?>("PreviousExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("previous_expires_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("TransactionReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("transaction_reference");
+
+                    b.HasKey("Id")
+                        .HasName("pk_subscription_extensions");
+
+                    b.HasIndex("TransactionReference")
+                        .IsUnique()
+                        .HasDatabaseName("ix_subscription_extensions_transaction_reference");
+
+                    b.HasIndex("TenantId", "CreatedAt")
+                        .HasDatabaseName("ix_subscription_extensions_tenant_id_created_at");
+
+                    b.ToTable("subscription_extensions", "public");
+                });
+
             modelBuilder.Entity("Axon.Domain.Entities.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("BillingCycle")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("billing_cycle");
 
                     b.Property<string>("BusinessName")
                         .IsRequired()
@@ -113,6 +172,12 @@ namespace Axon.Infrastructure.Persistence.Migrations.MasterDb
                         .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
+
+                    b.Property<bool>("IsTrial")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_trial");
 
                     b.Property<DateTime?>("LastTrialReminderSentAt")
                         .HasColumnType("timestamp with time zone")
@@ -159,6 +224,16 @@ namespace Axon.Infrastructure.Persistence.Migrations.MasterDb
                         .HasDatabaseName("ix_tenants_slug");
 
                     b.ToTable("tenants", "public");
+                });
+
+            modelBuilder.Entity("Axon.Domain.Entities.SubscriptionExtension", b =>
+                {
+                    b.HasOne("Axon.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscription_extensions_tenants_tenant_id");
                 });
 #pragma warning restore 612, 618
         }

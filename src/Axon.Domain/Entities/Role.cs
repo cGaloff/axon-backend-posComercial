@@ -4,6 +4,8 @@ namespace Axon.Domain.Entities;
 
 public class Role
 {
+    public const string OwnerRoleName = "Propietario";
+
     private readonly List<Permission> _permissions = new();
 
     public Guid Id { get; private set; }
@@ -18,6 +20,10 @@ public class Role
     public decimal? MaxDiscountPercentage { get; private set; }
 
     public IReadOnlyList<Permission> Permissions => _permissions;
+
+    // El Propietario nace con el registro del negocio: los formularios de
+    // usuarios no lo ofrecen para asignar a empleados.
+    public bool IsAssignable => Name != OwnerRoleName;
 
     private Role()
     {

@@ -352,6 +352,12 @@ CREATE TABLE {SCHEMA_NAME}.tenant_config (
     website VARCHAR(200),
     logo_url VARCHAR(500),
     is_responsable_iva BOOLEAN NOT NULL DEFAULT false,
+    -- Perfil del establecimiento (migración 018). tax_regime es la versión en
+    -- texto de is_responsable_iva; el backend mantiene ambos sincronizados.
+    legal_name VARCHAR(200),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    tax_regime VARCHAR(100) NOT NULL DEFAULT 'No responsable de IVA',
     -- Umbral (en pesos) desde el cual una merma queda pendiente de aprobación de
     -- un Administrador. Default seguro en 0: hasta que se configure explícitamente,
     -- TODA merma requiere aprobación (Matriz de Roles y Permisos v2, regla B).

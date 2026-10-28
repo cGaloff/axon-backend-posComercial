@@ -8,6 +8,7 @@ public interface IMasterDbContext
 {
     DbSet<Tenant> Tenants { get; }
     DbSet<PendingTenantRegistration> PendingTenantRegistrations { get; }
+    DbSet<SubscriptionExtension> SubscriptionExtensions { get; }
     DatabaseFacade Database { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -6,4 +6,7 @@ public record LoginResult(
     DateTime ExpiresAt,
     string UserFullName,
     string Role,
-    IEnumerable<string> Permissions);
+    IEnumerable<string> Permissions,
+    Guid UserId = default,
+    string BusinessName = "",
+    string Slug = "");

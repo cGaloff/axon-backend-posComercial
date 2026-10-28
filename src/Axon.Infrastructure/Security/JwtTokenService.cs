@@ -69,6 +69,9 @@ public class JwtTokenService : IJwtTokenService
             expiresAt,
             user.FullName,
             user.Role.Name,
-            permissions);
+            permissions,
+            user.Id,
+            tenantContext.BusinessName,
+            tenantContext.TenantSlug);
     }
 }

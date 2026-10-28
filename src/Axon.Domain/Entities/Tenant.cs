@@ -19,6 +19,15 @@ public class Tenant
     public DateTime? SubscriptionExpiresAt { get; private set; }
     public DateTime? LastTrialReminderSentAt { get; private set; }
 
+    // true mientras el tenant corre la prueba gratuita del auto-registro; pasa a
+    // false con la primera renovación o pago. Solo informativo: el corte lo
+    // sigue decidiendo SubscriptionExpiresAt.
+    public bool IsTrial { get; private set; }
+
+    // Último ciclo pagado (ver BillingCycles). null = nunca renovó por este
+    // backend (prueba, grandfathered o aprovisionado desde pagos).
+    public string? BillingCycle { get; private set; }
+
     private Tenant()
     {
     }
@@ -28,7 +37,8 @@ public class Tenant
         string businessName,
         string plan,
         string? ownerEmail = null,
-        DateTime? subscriptionExpiresAt = null)
+        DateTime? subscriptionExpiresAt = null,
+        bool isTrial = false)
     {
         if (string.IsNullOrWhiteSpace(slug))
         {
@@ -50,7 +60,8 @@ public class Tenant
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             OwnerEmail = ownerEmail,
-            SubscriptionExpiresAt = NormalizeToUtc(subscriptionExpiresAt)
+            SubscriptionExpiresAt = NormalizeToUtc(subscriptionExpiresAt),
+            IsTrial = isTrial
         };
     }
 
@@ -66,7 +77,44 @@ public class Tenant
     {
         SubscriptionExpiresAt = NormalizeToUtc(newExpiresAt);
         IsActive = true;
+        IsTrial = false;
         LastTrialReminderSentAt = null;
+    }
+
+    // Renovación por pago: los días se suman a lo que le quedaba si aún no
+    // vencía (pagar antes de tiempo no hace perder días); si ya venció, o no
+    // tenía vencimiento, se cuentan desde ahora.
+    public DateTime ExtendSubscriptionByDays(int extensionDays, string? billingCycle, DateTime utcNow)
+    {
+        if (extensionDays <= 0)
+        {
+            throw new DomainException("Los días de extensión deben ser mayores a cero.");
+        }
+
+        var baseDate = SubscriptionExpiresAt is not null && SubscriptionExpiresAt.Value > utcNow
+            ? SubscriptionExpiresAt.Value
+            : utcNow;
+
+        ExtendSubscription(baseDate.AddDays(extensionDays));
+
+        if (billingCycle is not null)
+        {
+            BillingCycle = billingCycle;
+        }
+
+        return SubscriptionExpiresAt!.Value;
+    }
+
+    // El nombre comercial vive también en tenant_config (schema del tenant); se
+    // replica acá para que el login muestre el nombre vigente.
+    public void Rename(string businessName)
+    {
+        if (string.IsNullOrWhiteSpace(businessName))
+        {
+            throw new DomainException("Business name is required.");
+        }
+
+        BusinessName = businessName;
     }
 
     // El backend de pagos llama a esto al convertir una prueba gratis en un
@@ -85,6 +133,7 @@ public class Tenant
         }
 
         SubscriptionExpiresAt = NormalizeToUtc(subscriptionExpiresAt);
+        IsTrial = false;
         LastTrialReminderSentAt = null;
 
         // El barrido de vencimientos suspende (IsActive = false) a los tenants

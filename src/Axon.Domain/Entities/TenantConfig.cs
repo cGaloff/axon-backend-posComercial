@@ -14,6 +14,14 @@ public class TenantConfig
     public string? LogoUrl { get; private set; }
     public bool IsResponsableIva { get; private set; }
 
+    // Datos comerciales del perfil del establecimiento (portal web). TaxRegime
+    // es la versión en texto de IsResponsableIva: se mantienen sincronizados
+    // desde ambos caminos de actualización (perfil y tenant-config).
+    public string? LegalName { get; private set; }
+    public string? City { get; private set; }
+    public string? State { get; private set; }
+    public string TaxRegime { get; private set; } = TaxRegimes.NoResponsableIva;
+
     // Valor (en pesos) a partir del cual una merma reportada por el Bodeguero
     // queda pendiente de aprobación de un Administrador (Matriz de Roles y
     // Permisos v2, regla transversal B). Default seguro: 0 — hasta que un
@@ -82,6 +90,64 @@ public class TenantConfig
         Website = website;
         LogoUrl = logoUrl;
         IsResponsableIva = isResponsableIva;
+        TaxRegime = TaxRegimes.FromIsResponsableIva(isResponsableIva);
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    // Email, sitio web y logo no forman parte del formulario de perfil: se
+    // conservan como estén.
+    public void UpdateProfile(
+        string businessName,
+        string? legalName,
+        string? nit,
+        string? phone,
+        string? address,
+        string? city,
+        string? state,
+        string taxRegime)
+    {
+        if (string.IsNullOrWhiteSpace(businessName))
+        {
+            throw new DomainException("El nombre del negocio es obligatorio.");
+        }
+
+        if (!TaxRegimes.IsValid(taxRegime))
+        {
+            throw new DomainException("Régimen tributario inválido.");
+        }
+
+        BusinessName = businessName;
+        LegalName = legalName;
+        Nit = nit;
+        Phone = phone;
+        Address = address;
+        City = city;
+        State = state;
+        TaxRegime = taxRegime;
+        IsResponsableIva = TaxRegimes.IsResponsableIva(taxRegime);
+        UpdatedAt = DateTime.UtcNow;
+    }
+}
+
+public static class TaxRegimes
+{
+    public const string ResponsableIva = "Responsable de IVA";
+    public const string NoResponsableIva = "No responsable de IVA";
+
+    public static readonly IReadOnlyList<string> All = new[] { ResponsableIva, NoResponsableIva };
+
+    public static bool IsValid(string? taxRegime)
+    {
+        return taxRegime is not null && All.Contains(taxRegime);
+    }
+
+    public static bool IsResponsableIva(string taxRegime)
+    {
+        return taxRegime == ResponsableIva;
+    }
+
+    public static string FromIsResponsableIva(bool isResponsableIva)
+    {
+        return isResponsableIva ? ResponsableIva : NoResponsableIva;
     }
 }

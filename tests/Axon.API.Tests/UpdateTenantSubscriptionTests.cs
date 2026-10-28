@@ -21,7 +21,9 @@ public class UpdateTenantSubscriptionTests
         dbContext.Tenants.Add(Tenant.Create("panaderia", "Panadería", "basic", subscriptionExpiresAt: DateTime.UtcNow.AddDays(-1)));
         await dbContext.SaveChangesAsync();
 
-        var nuevaFecha = new DateTime(2026, 10, 4, 0, 0, 0, DateTimeKind.Utc);
+        // Relativa a hoy: una fecha fija termina quedando en el pasado y el test
+        // falla solo por el calendario.
+        var nuevaFecha = DateTime.UtcNow.Date.AddDays(30);
         var invalidador = new InvalidadorDeCacheEspia();
 
         var resultado = await CrearHandler(dbContext, invalidador).Handle(

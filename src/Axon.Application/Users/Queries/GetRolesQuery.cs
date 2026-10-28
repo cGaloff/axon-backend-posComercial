@@ -9,5 +9,6 @@ public record RoleDto(
     string Name,
     string Description,
     bool IsSystem,
+    bool IsAssignable,
     decimal? MaxDiscountPercentage,
     List<string> Permissions);
