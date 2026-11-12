@@ -21,6 +21,7 @@ public class TenantResolutionMiddlewareTests
         Assert.False(siguienteEjecutado());
         Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
         Assert.Equal("Suscripción vencida.", await LeerMensajeAsync(context));
+        Assert.Equal("SUBSCRIPTION_EXPIRED", await LeerPropiedadAsync(context, "code"));
     }
 
     [Fact]
@@ -55,6 +56,7 @@ public class TenantResolutionMiddlewareTests
 
         Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
         Assert.Equal("Tenant suspendido.", await LeerMensajeAsync(context));
+        Assert.Equal("TENANT_SUSPENDED", await LeerPropiedadAsync(context, "code"));
     }
 
     [Fact]
@@ -64,6 +66,18 @@ public class TenantResolutionMiddlewareTests
         var (context, siguienteEjecutado) = await EjecutarMiddlewareAsync(
             Tenant.Create("panaderia", "Panadería", "basic", subscriptionExpiresAt: DateTime.UtcNow.AddDays(-1)),
             path: "/api/tenants/panaderia/subscription",
+            enviarHeaderDeTenant: false);
+
+        Assert.True(siguienteEjecutado());
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TrialInfo_EsPublicoYNoExigeElHeaderDeTenant()
+    {
+        var (context, siguienteEjecutado) = await EjecutarMiddlewareAsync(
+            Tenant.Create("panaderia", "Panadería", "basic"),
+            path: "/api/subscription/trial-info",
             enviarHeaderDeTenant: false);
 
         Assert.True(siguienteEjecutado());
@@ -111,13 +125,15 @@ public class TenantResolutionMiddlewareTests
         return new AppDbContext(options);
     }
 
-    private static async Task<string?> LeerMensajeAsync(HttpContext context)
+    private static Task<string?> LeerMensajeAsync(HttpContext context) => LeerPropiedadAsync(context, "message");
+
+    private static async Task<string?> LeerPropiedadAsync(HttpContext context, string propiedad)
     {
         context.Response.Body.Seek(0, SeekOrigin.Begin);
 
         using var documento = await JsonDocument.ParseAsync(context.Response.Body);
 
-        return documento.RootElement.GetProperty("message").GetString();
+        return documento.RootElement.GetProperty(propiedad).GetString();
     }
 
     // IsActive no tiene setter público y no se toca en esta funcionalidad; para

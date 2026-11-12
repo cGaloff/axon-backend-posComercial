@@ -1,3 +1,4 @@
+using Axon.API.Common;
 using Axon.Domain.Exceptions;
 using FluentValidation;
 
@@ -25,6 +26,11 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        catch (TenantBlockedException ex)
+        {
+            _logger.LogWarning(ex, "Tenant blocked exception handled by middleware.");
+            await WriteErrorResponseAsync(context, StatusCodes.Status403Forbidden, ex.Message, code: ex.Code);
+        }
         catch (DomainException ex)
         {
             _logger.LogWarning(ex, "Domain exception handled by middleware.");
@@ -39,8 +45,10 @@ public class ExceptionHandlingMiddleware
         {
             _logger.LogWarning(ex, "Validation exception handled by middleware.");
 
+            // El primer error va en message: el frontend muestra ese texto tal cual.
             var errors = ex.Errors.Select(e => e.ErrorMessage).ToList();
-            await WriteErrorResponseAsync(context, StatusCodes.Status400BadRequest, "Error de validación", errors);
+            await WriteErrorResponseAsync(
+                context, StatusCodes.Status400BadRequest, errors.FirstOrDefault() ?? "Error de validación", errors);
         }
         catch (Exception ex)
         {
@@ -58,7 +66,8 @@ public class ExceptionHandlingMiddleware
         HttpContext context,
         int statusCode,
         string message,
-        IEnumerable<string>? errors = null)
+        IEnumerable<string>? errors = null,
+        string? code = null)
     {
         if (context.Response.HasStarted)
         {
@@ -69,11 +78,12 @@ public class ExceptionHandlingMiddleware
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/json";
 
-        await context.Response.WriteAsJsonAsync(new
+        await context.Response.WriteAsJsonAsync(new ApiResponse<object>
         {
-            success = false,
-            message,
-            errors = errors ?? Array.Empty<string>()
+            Success = false,
+            Message = message,
+            Errors = errors?.ToList() ?? new List<string>(),
+            Code = code
         });
     }
 }

@@ -11,6 +11,7 @@ public class ChangeUserPasswordCommandValidator : AbstractValidator<ChangeUserPa
 
         RuleFor(x => x.NewPassword)
             .NotEmpty()
-            .MinimumLength(6);
+            .MinimumLength(8)
+            .WithMessage("La contraseña debe tener al menos 8 caracteres");
     }
 }

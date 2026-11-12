@@ -32,6 +32,17 @@ public class SubscriptionController : ControllerBase
         return Ok(ApiResponse<SubscriptionStatusResult>.Ok(result, "ok"));
     }
 
+    // Público (landing y pantalla de bloqueo): así el frontend anuncia los
+    // mismos días de prueba que se asignan al registrarse.
+    [HttpGet("trial-info")]
+    [AllowAnonymous]
+    public IActionResult GetTrialInfo()
+    {
+        var trialDays = int.TryParse(_configuration["Subscription:TrialDays"], out var days) ? days : 5;
+
+        return Ok(ApiResponse<TrialInfoResponse>.Ok(new TrialInfoResponse(trialDays), "ok"));
+    }
+
     // Punto de entrada manual mientras no hay pasarela de pagos integrada —
     // protegido por secreto (no JWT), mismo patrón que
     // PaymentWebhookController. El día que se integre una pasarela real, su

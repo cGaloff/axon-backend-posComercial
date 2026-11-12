@@ -1,4 +1,5 @@
 using Axon.API.Common;
+using Axon.Domain.Exceptions;
 using Axon.Infrastructure.MultiTenant;
 
 namespace Axon.API.Middleware;
@@ -12,6 +13,7 @@ public class TenantResolutionMiddleware
         "/auth/register-tenant",
         "/api/tenants/register",
         "/api/subscription/extend",
+        "/api/subscription/trial-info",
         "/api/webhooks",
         "/health"
     };
@@ -54,8 +56,7 @@ public class TenantResolutionMiddleware
 
         if (!tenant.IsActive)
         {
-            await WriteResponseAsync(context, StatusCodes.Status403Forbidden,
-                ApiResponse<object>.Fail("Tenant suspendido."));
+            await WriteBlockedResponseAsync(context, TenantBlockedException.Suspended());
             return;
         }
 
@@ -64,8 +65,7 @@ public class TenantResolutionMiddleware
         // el cliente sepa que basta con renovar.
         if (tenant.IsSubscriptionExpired(DateTime.UtcNow))
         {
-            await WriteResponseAsync(context, StatusCodes.Status403Forbidden,
-                ApiResponse<object>.Fail("Suscripción vencida."));
+            await WriteBlockedResponseAsync(context, TenantBlockedException.SubscriptionExpired());
             return;
         }
 
@@ -81,6 +81,12 @@ public class TenantResolutionMiddleware
     {
         return path.StartsWith("/api/tenants/", StringComparison.OrdinalIgnoreCase) &&
                path.EndsWith("/subscription", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Task WriteBlockedResponseAsync(HttpContext context, TenantBlockedException blocked)
+    {
+        return WriteResponseAsync(context, StatusCodes.Status403Forbidden,
+            ApiResponse<object>.Fail(blocked.Message, blocked.Code));
     }
 
     private static async Task WriteResponseAsync(HttpContext context, int statusCode, ApiResponse<object> response)

@@ -16,7 +16,8 @@ public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
 
         RuleFor(x => x.Password)
             .NotEmpty()
-            .MinimumLength(6);
+            .MinimumLength(8)
+            .WithMessage("La contraseña debe tener al menos 8 caracteres");
 
         RuleFor(x => x.RoleId)
             .NotEmpty();

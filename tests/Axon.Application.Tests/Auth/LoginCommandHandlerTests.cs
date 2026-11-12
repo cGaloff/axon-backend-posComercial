@@ -53,10 +53,11 @@ public class LoginCommandHandlerTests
         // no se concede y la auditoría no debe registrar un ingreso exitoso.
         var (handler, dbContext, user, _) = await ArrangeAsync(DateTime.UtcNow.AddDays(-1));
 
-        var error = await Assert.ThrowsAsync<DomainException>(() =>
+        var error = await Assert.ThrowsAsync<TenantBlockedException>(() =>
             handler.Handle(new LoginCommand(user.Email, "correcta123", "test-tenant"), CancellationToken.None));
 
-        Assert.Equal("Suscripción vencida", error.Message);
+        Assert.Equal("Suscripción vencida.", error.Message);
+        Assert.Equal(TenantBlockedException.SubscriptionExpiredCode, error.Code);
         Assert.DoesNotContain(dbContext.LoginAttempts, a => a.Success);
     }
 

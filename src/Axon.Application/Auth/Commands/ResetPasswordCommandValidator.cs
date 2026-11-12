@@ -11,7 +11,8 @@ public class ResetPasswordCommandValidator : AbstractValidator<ResetPasswordComm
 
         RuleFor(x => x.NewPassword)
             .NotEmpty()
-            .MinimumLength(8);
+            .MinimumLength(8)
+            .WithMessage("La contraseña debe tener al menos 8 caracteres");
 
         RuleFor(x => x.TenantSlug)
             .NotEmpty();

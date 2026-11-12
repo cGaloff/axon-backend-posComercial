@@ -89,7 +89,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
 
         if (subscriptionExpiresAt is not null && DateTime.UtcNow > subscriptionExpiresAt.Value)
         {
-            throw new DomainException("Suscripción vencida");
+            throw TenantBlockedException.SubscriptionExpired();
         }
 
         user.RegisterSuccessfulLogin();

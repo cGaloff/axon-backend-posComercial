@@ -55,7 +55,13 @@ builder.Services.AddMemoryCache();
 
 const string FrontendCorsPolicy = "FrontendCorsPolicy";
 
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+// En prod llega como un único texto separado por comas (CORS_ALLOWED_ORIGINS
+// → Cors__AllowedOrigins). Get<string[]>() ignora ese valor y se quedaba solo
+// con el array de appsettings.json, así que el texto tiene prioridad si viene.
+var corsSection = builder.Configuration.GetSection("Cors:AllowedOrigins");
+var allowedOrigins = (!string.IsNullOrWhiteSpace(corsSection.Value)
+        ? corsSection.Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        : corsSection.Get<string[]>())
     ?? throw new InvalidOperationException("La sección 'Cors:AllowedOrigins' no está configurada.");
 
 builder.Services.AddCors(options =>

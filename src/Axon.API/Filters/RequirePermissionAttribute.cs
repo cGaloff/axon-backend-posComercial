@@ -30,7 +30,14 @@ public class RequirePermissionAttribute : Attribute, IAuthorizationFilter
 
         if (!_permissions.Any(currentUser.HasPermission))
         {
-            context.Result = new ObjectResult(ApiResponse<object>.Fail($"No tienes permiso para: {string.Join(" o ", _permissions)}"))
+            // Mensaje para mostrar tal cual; el permiso exacto va en errors.
+            context.Result = new ObjectResult(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "No tienes permiso para esta acción.",
+                Errors = new List<string> { $"Permiso requerido: {string.Join(" o ", _permissions)}" },
+                Code = ApiResponse<object>.ForbiddenCode
+            })
             {
                 StatusCode = StatusCodes.Status403Forbidden
             };
